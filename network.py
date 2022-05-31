@@ -83,13 +83,31 @@ class Network:
         #nx.draw(g,with_labels=True)
         #plt.show()
         self.user_pairs = [(1,6),(2,10),(4,8)]
-        
+        self.each_path_legth = {}
         
         #self.shortest_paths_file = self.topology_file +'_shortest_paths'
         #self.DG = nx.DiGraph()
 
         #self.load_topology()
         #self.calculate_paths()
+    def set_each_path_length(self,path_id,path):
+        self.each_path_legth[path_id] = len(path)
+    
+                
+        
+    def remove_storage_pair_real_path_from_path(self,sub_path,path):
+        A = path
+        B = sub_path
+        start_ind = None
+        for i in range(len(A)):
+            if A[i:i+len(B)] == B:
+                start_ind = i
+                break
+
+        C = [x for i, x in enumerate(A) 
+             if start_ind is None or not(start_ind <= i < (start_ind + len(B)))]
+            
+        return C
     def recursive_purification(self,n,f):
         if n==1:
             return f
@@ -128,7 +146,7 @@ class Network:
             return self.oracle_for_target_fidelity[p][0.7]
         else:
             return 1
-    def get_new_storage_pairs(self,selected_storage_pairs,selected_storage_nodes):
+    def get_new_storage_pairs(self,number_of_storages):
         new_selected_storage_nodes = []
         new_selected_storage_pairs = []
         user_pair_nodes = set([])
@@ -138,33 +156,33 @@ class Network:
         user_pair_nodes = list(user_pair_nodes)
         permitted_nodes = []
         for node in self.nodes:
-            if node not in user_pair_nodes:
+            if node not in user_pair_nodes and node not in self.storage_nodes:
                 permitted_nodes.append(node)
-        if selected_storage_pairs:
-            storage1 = selected_storage_nodes[0]
-            while(storage1 in selected_storage_nodes):
+        #print("we have permitted node as ",permitted_nodes,len(self.storage_nodes),number_of_storages)
+        while(len(self.storage_nodes)<number_of_storages):
+            storage1 = permitted_nodes[0]
+            while(storage1 in self.storage_nodes):
                 storage1 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
-            print("for round  we have new storage node %s"%(storage1))
-            new_pairs = []
-            for storage_node in selected_storage_nodes:
-                if (storage1,storage_node) not in selected_storage_pairs and storage1!=storage_node:
-                    new_selected_storage_pairs.append((storage1,storage_node))
-                    if storage1 not in selected_storage_nodes:
-                        new_selected_storage_nodes.append(storage1)
-        else:
-            storage1 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
-            storage2 = storage1
-            while(storage1==storage2):
-                storage2 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
-            print("for round  we have new storage node %s"%(storage1))
-            if (storage1,storage2) not in selected_storage_pairs:
-                new_selected_storage_pairs.append((storage1,storage2))
-                new_selected_storage_nodes.append(storage1)
-                new_selected_storage_nodes.append(storage2)
-        print("this is our first storage pair",new_selected_storage_pairs)
-
-        print(new_selected_storage_nodes)
-        return new_selected_storage_nodes,new_selected_storage_pairs   
+            #print("we selected new storage node %s"%(storage1))
+            if  self.storage_pairs:
+                for storage_node in self.storage_nodes:
+                    if ((storage1,storage_node) not in self.storage_pairs and (storage_node,storage1) not in self.storage_pairs) and storage1!=storage_node:
+                        self.storage_pairs.append((storage1,storage_node))
+                if storage1 not in self.storage_nodes:
+                    self.storage_nodes.append(storage1)
+            else:
+                storage1 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
+                storage2 = storage1
+                while(storage1==storage2):
+                    storage2 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
+                #print("for round  we have new storage node %s"%(storage1))
+                if (storage1,storage2) not in self.storage_pairs and (storage2,storage1) not in self.storage_pairs:
+                    self.storage_pairs.append((storage1,storage2))
+                    self.storage_nodes.append(storage1)
+                    self.storage_nodes.append(storage2)
+                #print("this is our first storage pair",self.storage_pairs)
+    def reset_pair_paths(self):
+        self.each_user_pair_all_real_paths = {}
     
     def get_each_user_pair_real_paths(self,user_pairs):
         for user_pair in user_pairs:
@@ -192,6 +210,7 @@ class Network:
         self.set_E=[]
         self.each_edge_capacity={}
         self.nodes = []
+        self.max_edge_capacity = 0
         self.g = nx.Graph()
         print('[*] Loading topology...', self.topology_file)
         f = open(self.topology_file, 'r')
@@ -210,6 +229,8 @@ class Network:
             self.set_E.append((int(s),int(d)))
             random_capacity = random.randint(20, 400)
             self.each_edge_capacity[(int(s),int(d))] = random_capacity
+            if random_capacity>self.max_edge_capacity:
+                self.max_edge_capacity  = random_capacity
             self.g.add_edge(int(s),int(d),weight=1)
 #             self.link_capacities[int(i)] = float(c)
 #             self.link_weights[int(i)] = int(w)
@@ -235,22 +256,22 @@ class Network:
                 try:
                     if path_edges not in self.each_user_pair_virtual_paths[user_pair] and storage_pair in path_edges:
                         self.each_user_pair_virtual_paths[user_pair].append(path_edges)
-                        print("we added path %s for user pair %s"%(path,user_pair))
+                        #print("we added path %s for user pair %s"%(path,user_pair))
                         path_selecion_flag = True
 
                 except:
                     if storage_pair in path_edges:
                         self.each_user_pair_virtual_paths[user_pair]=[path_edges]
                         path_selecion_flag = True
-                        print("we added path %s for user pair %s"%(path,user_pair))
+                        #print("we added path %s for user pair %s"%(path,user_pair))
                     
     def join_users_to_storages(self,src,dst,str1,str2,real_sub_path,number_of_paths):
-        print("we are going to connect node %s to %s and %s to %s"%(src,str1,str2,dst))
+        #print("we are going to connect node %s to %s and %s to %s"%(src,str1,str2,dst))
         self.get_each_user_pair_real_paths([(src,str1)])
         self.get_each_user_pair_real_paths([(str2,dst)])
         sub_paths1 = self.get_real_path((src,str1),number_of_paths)
         sub_paths2 = self.get_real_path((str2,dst),number_of_paths)
-        print("we got these paths for them",sub_paths1,sub_paths2)
+        #print("we got these paths for them",sub_paths1,sub_paths2)
         set_of_paths = []
         for path_part1 in sub_paths1:
             new_path = []
@@ -268,15 +289,15 @@ class Network:
                 new_path = back_up_path
         return set_of_paths
     def get_paths_to_connect_users_to_storage(self,user_pair,real_sub_path,num_paths):
-        print("we are going to find shortest path to connect user pair %s to sub path %s"%(user_pair,real_sub_path))
+        #print("we are going to find shortest path to connect user pair %s to sub path %s"%(user_pair,real_sub_path))
         src= user_pair[0]
         dst= user_pair[1]
         str1 = real_sub_path[0][0]
         str2= real_sub_path[len(real_sub_path)-1][1]
         first_set_of_paths = self.join_users_to_storages(src,str1,str2,dst,real_sub_path,num_paths)
         second_set_of_paths = self.join_users_to_storages(dst,str1,str2,src,real_sub_path,num_paths)
-        print("we got first set of paths ",first_set_of_paths)
-        print("we got the second set of paths",second_set_of_paths)
+#         print("we got first set of paths ",first_set_of_paths)
+#         print("we got the second set of paths",second_set_of_paths)
         first_path_length = []
         second_path_length = []
         for path in first_set_of_paths:
@@ -324,7 +345,7 @@ class Network:
     #         paths
     #         virtual_paths
     def get_path_length(self,path):
-        return len(self.set_of_paths[path])
+        return self.each_path_legth[path]
     def scale_network(self,each_edge_scaling):
         
         for edge in self.set_E:

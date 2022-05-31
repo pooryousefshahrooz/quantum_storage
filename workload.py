@@ -44,15 +44,15 @@ class Work_load(object):
             for line in (reader):
                 time = int(line[0])
                 request  = int(line[1])
-                if time <20 and request <3:
+                if time <10 and request <3:
                     
                     request = each_user_id[request]
                     demand = float(line[2])
                     try:
-                        self.each_t_each_request_demand[time][request] = demand
+                        self.each_t_each_request_demand[time][request] = demand/8
                     except:
                         self.each_t_each_request_demand[time] = {}
-                        self.each_t_each_request_demand[time][request] = demand
+                        self.each_t_each_request_demand[time][request] = demand/8
                     if time not in self.T:
                         self.T.append(time)
                     try:

@@ -4,9 +4,10 @@
 # In[44]:
 
 
-from tmgen.models import uniform_tm,spike_tm,modulated_gravity_tm,random_gravity_tm,gravity_tm,exp_tm
+#from tmgen.models import uniform_tm,spike_tm,modulated_gravity_tm,random_gravity_tm,gravity_tm,exp_tm
 import csv
 import os
+import random
 
 
 # In[ ]:
@@ -26,8 +27,8 @@ class Work_load(object):
                                      (2,5):{0:0.3,1:0.3,2:0.3},
                                      (10,12):{0:0.3,1:0.3,2:0.3}
                                      }
-        self.each_user_request_fidelity_threshold = {(1,6):0.8,(2,10):0.9,(4,8):0.7,(6,11):0.6,
-                                                          (5,10):0.7,(3,9):0.9}
+        self.each_user_request_fidelity_threshold = {(1,6):0.8,(2,10):0.9,(4,8):0.8,(6,11):0.9,
+                                                          (5,10):0.8,(3,9):0.9,(8,10):0.8,(0,3):0.9,(1,10):1.0,(2,5):0.9}
         self.each_t_requests = {}
         self.each_t_real_requests = {}
         self.time_intervals = 2
@@ -39,34 +40,82 @@ class Work_load(object):
         for user_pair in user_pairs:
             each_user_id[id_counter] = user_pair
             id_counter+=1
-        with open(file_result_path, "r") as f:
-            reader = csv.reader(f, delimiter=",")
-            for line in (reader):
-                time = int(line[0])
-                request  = int(line[1])
-                if time <10 and request <3:
-                    
-                    request = each_user_id[request]
-                    demand = float(line[2])
-                    try:
-                        self.each_t_each_request_demand[time][request] = demand/8
-                    except:
-                        self.each_t_each_request_demand[time] = {}
-                        self.each_t_each_request_demand[time][request] = demand/8
-                    if time not in self.T:
-                        self.T.append(time)
-                    try:
-                        if request not in self.each_t_requests[time]:
-                            self.each_t_requests[time].append(request)
-                    except:
-                        self.each_t_requests[time] = [request]
+        up_flag = False
+        
+        for time in range(0,15):
+            each_pair_demand = {}
+            if time%2==0:
+                demand1 = demand = random.randint(2, 50)
+                demand2 = random.randint(2, 50)
+                
+            else:
+                demand1 = demand = random.randint(1, 3)
+                demand2 = random.randint(1, 3)
+            each_pair_demand[user_pairs[0]] = demand1
+            each_pair_demand[user_pairs[1]] = demand2
+            for request in user_pairs:
+                demand =each_pair_demand[request]
+                try:
+                    self.each_t_each_request_demand[time][request] = demand
+                except:
+                    self.each_t_each_request_demand[time] = {}
+                    self.each_t_each_request_demand[time][request] = demand
+                if time not in self.T:
+                    self.T.append(time)
+                try:
+                    if request not in self.each_t_requests[time]:
+                        self.each_t_requests[time].append(request)
+                except:
+                    self.each_t_requests[time] = [request]
 
-                    if time >0:
-                        try:
-                            if self.each_t_real_requests[time]:
-                                pass
-                        except:
-                            self.each_t_real_requests[time] = user_pairs
+                if time >0:
+                    try:
+                        if self.each_t_real_requests[time]:
+                            pass
+                    except:
+                        self.each_t_real_requests[time] = user_pairs
+        for request in user_pairs:
+            try:
+                self.each_t_each_request_demand[0][request] = 0
+            except:
+                self.each_t_each_request_demand[0]={}
+                self.each_t_each_request_demand[0][request] = 0
+#         with open(file_result_path, "r") as f:
+#             reader = csv.reader(f, delimiter=",")
+#             for line in (reader):
+#                 time = int(line[0])
+#                 request  = int(line[1])
+#                 if time <15 and request <2:
+                    
+#                     request = each_user_id[request]
+#                     demand = float(line[2])
+                    
+#                     if up_flag:
+#                         demand = random.randint(2, 100)
+#                         up_flag = False
+#                     else:
+#                         demand = random.randint(1, 3)
+#                         up_flag  =True
+#                     #print("demand is ",demand)
+#                     try:
+#                         self.each_t_each_request_demand[time][request] = demand
+#                     except:
+#                         self.each_t_each_request_demand[time] = {}
+#                         self.each_t_each_request_demand[time][request] = demand
+#                     if time not in self.T:
+#                         self.T.append(time)
+#                     try:
+#                         if request not in self.each_t_requests[time]:
+#                             self.each_t_requests[time].append(request)
+#                     except:
+#                         self.each_t_requests[time] = [request]
+
+#                     if time >0:
+#                         try:
+#                             if self.each_t_real_requests[time]:
+#                                 pass
+#                         except:
+#                             self.each_t_real_requests[time] = user_pairs
                 
     def check_demands_per_each_time(self,user_pairs):
         for time in self.T:
@@ -112,6 +161,16 @@ class Work_load(object):
         for k,v in new_t_request_demands.items():
             self.each_t_each_request_demand[k] = v
     
+
+
+# In[2]:
+
+
+for time in range(0,15):
+    if time%2==0:
+        print("low")
+    else:
+        print("high")
 
 
 # In[46]:

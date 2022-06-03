@@ -55,7 +55,7 @@ class Network:
         self.each_request_virtual_paths = {}
         self.storage_pairs = [(2,5),(10,12)]
         self.storage_nodes = [2,5,10,12]
-        self.each_storage_capacity = {2:100,5:100,10:100,12:100}
+        self.each_storage_capacity = {2:1000,5:1000,10:1000,12:1000}
         self.each_storage_capacity = {}
         self.storage_pairs = []
         self.storage_nodes = []
@@ -82,7 +82,13 @@ class Network:
 #         self.g.add_edge(9,5,weight=1)
         #nx.draw(g,with_labels=True)
         #plt.show()
-        self.user_pairs = [(1,6),(2,10),(4,8)]
+        self.user_pairs = []
+        candidate_user_pairs = [(1,6),(2,10),(4,8),(6,11),(5,10),(3,9),(8,10),(0,3),(1,10),(2,5)]
+        while(len(self.user_pairs)<2):
+            user_pair = candidate_user_pairs[random.randint(0,len(candidate_user_pairs)-1)]
+            if user_pair not in self.user_pairs:
+                self.user_pairs.append(user_pair)
+        
         self.each_path_legth = {}
         
         #self.shortest_paths_file = self.topology_file +'_shortest_paths'
@@ -227,7 +233,7 @@ class Network:
                 self.nodes.append(int(d))
             
             self.set_E.append((int(s),int(d)))
-            random_capacity = random.randint(20, 400)
+            random_capacity = random.randint(180, 600)
             self.each_edge_capacity[(int(s),int(d))] = random_capacity
             if random_capacity>self.max_edge_capacity:
                 self.max_edge_capacity  = random_capacity
@@ -310,7 +316,7 @@ class Network:
             return first_set_of_paths
         
     def set_each_path_basic_fidelity(self):
-        basic_fidelities = [0.6,0.7,0.8,0.9]
+        basic_fidelities = [0.7,0.8,0.9]
         self.each_path_basic_fidelity = {}
         for path in self.set_of_paths:
             basic_fidelity = basic_fidelities[random.randint(0,len(basic_fidelities)-1)]
@@ -345,7 +351,7 @@ class Network:
     #         paths
     #         virtual_paths
     def get_path_length(self,path):
-        return self.each_path_legth[path]
+        return self.each_path_legth[path]-1
     def scale_network(self,each_edge_scaling):
         
         for edge in self.set_E:
@@ -368,15 +374,7 @@ class Network:
     def load_virtual_paths(self):
         
         return self.each_request_virtual_paths
-    def get_storage_nodes(self):
-        self.storage_nodes
-    
-    def get_storage_pairs(self):
-        self.storage_pairs = []
-        
-    def get_each_storage_capacity(self):
-        self.each_storage_capacity = {}
-    
+
     
     
 

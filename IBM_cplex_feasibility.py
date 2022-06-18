@@ -30,7 +30,7 @@ import time
 # In[ ]:
 
 
-def CPLEX_resource_cinsumption_minimization(network,work_load,iteration):
+def CPLEX_resource_cinsumption_minimization(network,work_load,life_time,iteration):
     
     import docplex.mp.model as cpx
     opt_model = cpx.Model(name="Storage problem model"+str(iteration))
@@ -53,23 +53,35 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,iteration):
                               name="w_{0}_{1}_{2}".format(t,k,p))  for t in work_load.T 
                for k in work_load.each_t_requests[t] 
                for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]}
+
     u_vars  = {(t,j,p): opt_model.continuous_var(lb=0, ub= network.max_edge_capacity,
-                              name="u_{0}_{1}_{2}".format(t,j,p))  for t in work_load.T 
-               for j in network.storage_pairs for p in network.each_request_real_paths[j]}   
+                                  name="u_{0}_{1}_{2}".format(t,j,p))  for t in work_load.T 
+                   for j in network.storage_pairs for p in network.each_request_real_paths[j]}   
 
 
-    
-    #inventory evolution constraint
-    for t in work_load.T[1:]:
-        for j in network.storage_pairs:
-            for p_s in network.each_request_real_paths[j]:
-                opt_model.add_constraint(u_vars[t,j,p_s] == u_vars[t-1,j,p_s]-
-                opt_model.sum(w_vars[t-1,k,p] *network.get_required_purification_EPR_pairs(p,work_load.get_each_request_thrshold(k,t))
-                for k in work_load.each_t_requests[t] if k!=j for p in network.each_request_virtual_paths[k] 
-                if network.check_path_include_sub_path(p_s,p))+
-                opt_model.sum(w_vars[t-1,j,p_s])
-                                     , ctname="inventory_evolution_{0}_{1}".format(t,j,p_s))
-    
+    if life_time ==1000:
+        #inventory evolution constraint
+        for t in work_load.T[1:]:
+            for j in network.storage_pairs:
+                for p_s in network.each_request_real_paths[j]:
+                    opt_model.add_constraint(u_vars[t,j,p_s] == u_vars[t-1,j,p_s]-
+                    opt_model.sum(w_vars[t-1,k,p] *network.get_required_purification_EPR_pairs(p,work_load.get_each_request_thrshold(k,t))
+                    for k in work_load.each_t_requests[t] if k!=j for p in network.each_request_virtual_paths[k] 
+                    if network.check_path_include_sub_path(p_s,p))+
+                    opt_model.sum(w_vars[t-1,j,p_s])
+                                         , ctname="inventory_evolution_{0}_{1}".format(t,j,p_s))
+    else:
+        #inventory evolution constraint
+        for t in work_load.T[1:]:
+            for j in network.storage_pairs:
+                for p_s in network.each_request_real_paths[j]:
+                    opt_model.add_constraint(u_vars[t,j,p_s] == -
+                    opt_model.sum(w_vars[t-1,k,p] *network.get_required_purification_EPR_pairs(p,work_load.get_each_request_thrshold(k,t))
+                    for k in work_load.each_t_requests[t] if k!=j for p in network.each_request_virtual_paths[k] 
+                    if network.check_path_include_sub_path(p_s,p))+
+                    opt_model.sum(w_vars[t-1,j,p_s])
+                                         , ctname="inventory_evolution_{0}_{1}".format(t,j,p_s))
+
     # serving from inventory constraint
     for t in work_load.T[1:]:
         for j in network.storage_pairs:
@@ -78,6 +90,7 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,iteration):
                 for k in work_load.each_t_requests[t] if k!=j for p in network.each_request_virtual_paths[k] 
                 if network.check_path_include_sub_path(p_s,p))<=u_vars[t,j,p_s]
                                      , ctname="inventory_serving_{0}_{1}_{2}".format(t,j,p_s))  
+ 
      
     # Demand constriant
     for t in work_load.T[1:]:
@@ -115,6 +128,7 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,iteration):
                 for k in work_load.each_t_requests[t] for p in network.each_request_real_paths[k] 
                 )<=0, ctname="storing_in_inventory_{0}".format(t))   
     
+
     # constraint for inventory is zero at time zero 
     for t in [0]:
         for j in network.storage_pairs:
@@ -172,17 +186,15 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,iteration):
     print('docplex.mp.solution',opt_model.solution)
     objective_value = 0
     try:
-        if opt_model.solution:
-            objective_value =opt_model.solution.get_objective_value()
-    except ValueError:
-        print(ValueError)
-        #pass
+        objective_value =opt_model.solution.get_objective_value()
+    except:
+        pass
     if objective_value>0:
         for t in work_load.T[1:]:
             for j in network.storage_pairs:
                 for p in network.each_request_real_paths[j]:
                     print("values for storage",u_vars[t-1,j,p].solution_value)
-        time.sleep(4)
+        #time.sleep(4)
     
         #print(ValueError)
     opt_model.clear()
@@ -203,17 +215,16 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,iteration):
 # In[ ]:
 
 
-def minimizing_resource_consumption(each_network_topology_file):
+def minimizing_resource_consumption(each_network_topology_file,spike_mean,num_spikes,experiment_repeat):
     for network_topology,file_path in each_network_topology_file.items():
-        
-        results_file_path = 'results_file_minimizing_resource_consumption.csv'
+        results_file_path = 'results_file_feasibility.csv'
         import pdb
         each_storage_each_path_number_value = {}
         # pdb.set_trace()
-        distance_between_users = 3
-        number_of_user_pairs =5
-        number_of_time_slots = 50
-        for i in range(400):
+        distance_between_users = 2
+        number_of_user_pairs =1
+        number_of_time_slots = 15
+        for i in range(experiment_repeat):
     #         network = Network('abilene')
             network = Network(file_path)
             network.get_user_pairs(number_of_user_pairs,distance_between_users,number_of_time_slots)
@@ -227,7 +238,7 @@ def minimizing_resource_consumption(each_network_topology_file):
             #nx.draw(network.g,with_labels=True)
             # plt.show()
 
-            for number_of_storages in range(7,8):
+            for number_of_storages in range(0,7):
 
                 """with new storage pairs, we will check the solution for each number of paths(real and virtual)"""
                 for num_paths in range(3,4):
@@ -337,8 +348,8 @@ def minimizing_resource_consumption(each_network_topology_file):
                     print('network.each_request_virtual_paths',network.each_request_virtual_paths)
                     import pdb
                     """we set the demands for each user pair"""
-                    work_load.set_each_user_pair_demands(number_of_time_slots,network.each_t_user_pairs)
-
+                    work_load.set_each_user_pair_demands(number_of_time_slots,network.each_t_user_pairs,spike_mean,num_spikes)
+                                                   
                     """we set the capacity of each storage node"""
 
                     network.set_storage_capacity()
@@ -388,45 +399,48 @@ def minimizing_resource_consumption(each_network_topology_file):
 
                     import pdb
                     #pdb.set_trace()
-                    """solve the optimization"""        
-                    try:
-                        objective_value=-1
+                    """solve the optimization"""
+                    life_time_set = [1000,2]
+                    for life_time in life_time_set:
                         try:
-                            objective_value = CPLEX_resource_cinsumption_minimization(network,work_load,i)
-                        except ValueError:
-                            print(ValueError)
-                            #pass
-                        objective_values.append(objective_value)
+                            objective_value=-1
+                            try:
 
-    #                     print("demand",work_load.each_t_each_request_demand)
-    #                     print("user pairs",network.each_t_user_pairs)
-    #                     print('network.set_of_paths',network.set_of_paths)
-    #                     print('network.each_request_real_paths',network.each_request_real_paths)
-    #                     print('network.each_request_virtual_paths',network.each_request_virtual_paths)
-    #                     print("work_load.each_t_real_requests",work_load.each_t_real_requests)
-    #                     time.sleep(4)
-    #                     import pdb
-    #                     #pdb.set_trace()
-                        print("the objective value for %s storage nodes and %s paths between each pair of nodes is %s"%(number_of_storages,num_paths,objective_value))
-                        #time.sleep(3)
-                        if objective_value>=0:
-                            with open(results_file_path, 'a') as newFile:                                
-                                newFileWriter = csv.writer(newFile)
-                                newFileWriter.writerow([network_topology,number_of_storages,num_paths,objective_value]) 
-                                try:
-                                    each_storage_each_path_number_value[number_of_storages][num_paths].append(objective_value)
-                                except:
+                                objective_value = CPLEX_resource_cinsumption_minimization(network,work_load,life_time,i)
+                            except:
+                                #print(ValueError)
+                                pass
+                            objective_values.append(objective_value)
+
+        #                     print("demand",work_load.each_t_each_request_demand)
+        #                     print("user pairs",network.each_t_user_pairs)
+        #                     print('network.set_of_paths',network.set_of_paths)
+        #                     print('network.each_request_real_paths',network.each_request_real_paths)
+        #                     print('network.each_request_virtual_paths',network.each_request_virtual_paths)
+        #                     print("work_load.each_t_real_requests",work_load.each_t_real_requests)
+        #                     time.sleep(4)
+        #                     import pdb
+        #                     #pdb.set_trace()
+                            print("the objective value for %s storage nodes and %s paths between each pair of nodes is %s"%(number_of_storages,num_paths,objective_value))
+                            #time.sleep(3)
+                            if objective_value>=0:
+                                with open(results_file_path, 'a') as newFile:                                
+                                    newFileWriter = csv.writer(newFile)
+                                    newFileWriter.writerow([network_topology,number_of_storages,num_paths,life_time,objective_value,spike_mean,num_spikes,i]) 
                                     try:
-                                        each_storage_each_path_number_value[number_of_storages][num_paths]=[objective_value]
+                                        each_storage_each_path_number_value[number_of_storages][num_paths].append(objective_value)
                                     except:
-                                        each_storage_each_path_number_value[number_of_storages]= {}
-                                        each_storage_each_path_number_value[number_of_storages][num_paths]=[objective_value]
+                                        try:
+                                            each_storage_each_path_number_value[number_of_storages][num_paths]=[objective_value]
+                                        except:
+                                            each_storage_each_path_number_value[number_of_storages]= {}
+                                            each_storage_each_path_number_value[number_of_storages][num_paths]=[objective_value]
 
-                    except ValueError:
-                        #pass
-                        print(ValueError)
+                        except ValueError:
+                            #pass
+                            print(ValueError)
             print("until the %s th iteration we have %s"%(i,each_storage_each_path_number_value)) 
-            time.sleep(10)
+            #time.sleep(10)
         # work_load = Work_load()
         # network = Network('../data')
 
@@ -443,8 +457,15 @@ def minimizing_resource_consumption(each_network_topology_file):
 # In[ ]:
 
 
-each_network_topology_file = {"ATT":'ATT_topology_file',"Abilene":'ATT_topology_file',"SURFnet":'Surfnet'}
-minimizing_resource_consumption(each_network_topology_file)
+experiment_repeat =150
+spike_mean = 60
+num_spikes = 1
+each_network_topology_file = {"ATT":'data/ATT_topology_file',"Abilene":'data/abilene',"SURFnet":'data/Surfnet'}
+for i in range(20):
+    each_network_topology_file["random_erdos_renyi_"+str(i)]= "data/random_erdos_renyi_"+str(i)+".txt"
+    each_network_topology_file["random_barabasi_albert_"+str(i)]= "data/random_barabasi_albert_"+str(i)+".txt"
+each_network_topology_file = {"SURFnet":'data/Surfnet'}
+minimizing_resource_consumption(each_network_topology_file,spike_mean,num_spikes,experiment_repeat)
 
 
 # In[ ]:

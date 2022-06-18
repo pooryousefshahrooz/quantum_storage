@@ -4,7 +4,7 @@
 # In[44]:
 
 
-#from tmgen.models import uniform_tm,spike_tm,modulated_gravity_tm,random_gravity_tm,gravity_tm,exp_tm
+from tmgen.models import uniform_tm,spike_tm,modulated_gravity_tm,random_gravity_tm,gravity_tm,exp_tm
 import csv
 import os
 import random
@@ -14,10 +14,10 @@ import random
 
 
 class Work_load(object):
-    def __init__(self,user_pairs,file_result_path):
+    def __init__(self,number_of_time_slots,file_result_path):
         self.T = []
         self.num_requests = 2
-        self.request_pairs = user_pairs
+        
         self.each_t_requests = {0:[(1,6),(2,5),(10,12)],1:[(1,6),(2,5),(10,12)],2:[(1,6),(2,5),(10,12)]}
         self.each_t_real_requests = {1:[(1,6)],2:[(1,6)]}
         self.time_intervals = 2
@@ -34,47 +34,164 @@ class Work_load(object):
         self.time_intervals = 2
 
         self.each_request_threshold= {}
-        self.each_t_each_request_demand = {}
-        id_counter = 0
-        each_user_id = {}
-        for user_pair in user_pairs:
-            each_user_id[id_counter] = user_pair
-            id_counter+=1
-        up_flag = False
+        self.each_user_each_t_weight = {}
         
-        for time in range(0,15):
+        for time in range(number_of_time_slots):
+            if time not in self.T:
+                self.T.append(time)
+    def reset_variables(self):
+        self.each_t_requests = {}
+        self.each_t_real_requests = {}
+    def set_each_user_weight_over_time(self,each_t_user_pairs):
+        for t,user_pairs in each_t_user_pairs.items():
+            for k in user_pairs:
+                random_weight = random.uniform(0, 1)
+                try:
+                    self.each_user_each_t_weight[k][t] = random_weight
+                except:
+                    self.each_user_each_t_weight[k]= {}
+                    self.each_user_each_t_weight[k][t] = random_weight
+    def get_each_user_weight_over_time(self,k,t):
+        return self.each_user_each_t_weight[k][t]
+    def set_each_time_requests(self,each_t_user_pairs,storage_pairs):
+        for t,user_pairs in each_t_user_pairs.items():
+            for pair in user_pairs:
+                try:
+                    if pair not in self.each_t_requests[t]:
+                        try:
+                            self.each_t_requests[t].append(pair)
+                        except:
+                            self.each_t_requests[t] = [pair]
+                except:
+                    self.each_t_requests[t] = [pair]
+            for pair in storage_pairs:
+                try:
+                    if pair not in self.each_t_requests[t]:
+                        try:
+                            self.each_t_requests[t].append(pair)
+                        except:
+                            self.each_t_requests[t] = [pair]
+                except:
+                    self.each_t_requests[t] = [pair]
+                    
+    def set_each_time_real_requests(self,each_t_user_pairs):
+        for t,user_pairs in each_t_user_pairs.items():
+            for pair in user_pairs:
+                try:
+                    if pair not in self.each_t_real_requests[t]:
+                        try:
+                            self.each_t_real_requests[t].append(pair)
+                        except:
+                            self.each_t_real_requests[t] = [pair]
+                except:
+                    self.each_t_real_requests[t] = [pair]
+    def set_each_testing_user_pair_demands(self,number_of_time_slots,each_t_user_pairs,spike_mean,num_spikes):
+        self.each_t_each_request_demand = {}
+        num_of_pairs= len(list(each_t_user_pairs[0]))
+        #print(num_of_pairs,num_spikes,spike_mean,number_of_time_slots)
+        tm = spike_tm(num_of_pairs+1,num_spikes,spike_mean,number_of_time_slots)
+#         for time in range(number_of_time_slots):
+#             traffic = tm.at_time(time)
+#             printed_pairs = []
+#             user_indx = 0
+#             for i in range(num_of_pairs+1):
+#                 for j in range(num_of_pairs+1):
+#                     if i!=j:
+#                         if (i,j) not in printed_pairs and (j,i) not in printed_pairs:
+#                             printed_pairs.append((i,j))
+#                             printed_pairs.append((j,i))
+#                             #print("time %s traffic from %s to %s is %s"%(time,i,j,traffic[i][j]))
+#                             request = each_t_user_pairs[time][user_indx]
+#                             user_indx+=1
+#                             demand = max(1,traffic[i][j])
+#                             try:
+#                                 self.each_t_each_request_demand[time][request] = demand
+#                             except:
+#                                 self.each_t_each_request_demand[time] = {}
+#                                 self.each_t_each_request_demand[time][request] = demand
+                                
+        for time in range(0,number_of_time_slots):
             each_pair_demand = {}
             if time%2==0:
-                demand1 = demand = random.randint(2, 50)
-                demand2 = random.randint(2, 50)
-                
+                for user_pair in each_t_user_pairs[time]:
+                    demand  = random.randint(1, 1)
+                    each_pair_demand[user_pair] = demand
             else:
-                demand1 = demand = random.randint(1, 3)
-                demand2 = random.randint(1, 3)
-            each_pair_demand[user_pairs[0]] = demand1
-            each_pair_demand[user_pairs[1]] = demand2
-            for request in user_pairs:
+                for user_pair in each_t_user_pairs[time]:
+                    demand  = random.randint(1, 1)
+                    each_pair_demand[user_pair] = demand
+            if time==number_of_time_slots-1:
+                for user_pair in each_t_user_pairs[time]:
+                    demand  = random.randint(60, 60)
+                    each_pair_demand[user_pair] = demand
+#             each_pair_demand[user_pairs[0]] = demand1
+#             each_pair_demand[user_pairs[1]] = demand2
+            for request in each_t_user_pairs[time]:
                 demand =each_pair_demand[request]
                 try:
                     self.each_t_each_request_demand[time][request] = demand
                 except:
                     self.each_t_each_request_demand[time] = {}
                     self.each_t_each_request_demand[time][request] = demand
-                if time not in self.T:
-                    self.T.append(time)
-                try:
-                    if request not in self.each_t_requests[time]:
-                        self.each_t_requests[time].append(request)
-                except:
-                    self.each_t_requests[time] = [request]
-
-                if time >0:
-                    try:
-                        if self.each_t_real_requests[time]:
-                            pass
-                    except:
-                        self.each_t_real_requests[time] = user_pairs
-        for request in user_pairs:
+                
+                
+        for request in each_t_user_pairs[time]:
+            try:
+                self.each_t_each_request_demand[0][request] = 0
+            except:
+                self.each_t_each_request_demand[0]={}
+                self.each_t_each_request_demand[0][request] = 0
+    def set_each_user_pair_demands(self,number_of_time_slots,each_t_user_pairs,spike_mean,num_spikes):
+        self.each_t_each_request_demand = {}
+        num_of_pairs= len(list(each_t_user_pairs[0]))
+        print(num_of_pairs,num_spikes,spike_mean,number_of_time_slots)
+        tm = spike_tm(num_of_pairs+1,num_spikes,spike_mean,number_of_time_slots)
+        for time in range(number_of_time_slots):
+            traffic = tm.at_time(time)
+            printed_pairs = []
+            user_indx = 0
+            for i in range(num_of_pairs):
+                for j in range(num_of_pairs):
+                    if i!=j:
+                        if (i,j) not in printed_pairs and (j,i) not in printed_pairs:
+                            printed_pairs.append((i,j))
+                            printed_pairs.append((j,i))
+                            print("num_of_pairs %s time %s traffic from %s to %s is %s and user_indx %s"%(num_of_pairs, time,i,j,traffic[i][j],user_indx))
+                            request = each_t_user_pairs[time][user_indx]
+                            user_indx+=1
+                            demand = max(1,traffic[i][j])
+                            try:
+                                self.each_t_each_request_demand[time][request] = demand
+                            except:
+                                self.each_t_each_request_demand[time] = {}
+                                self.each_t_each_request_demand[time][request] = demand
+                                
+#         for time in range(0,number_of_time_slots):
+#             each_pair_demand = {}
+#             if time%2==0:
+#                 for user_pair in each_t_user_pairs[time]:
+#                     demand  = random.randint(2, 3)
+#                     each_pair_demand[user_pair] = demand
+#             else:
+#                 for user_pair in each_t_user_pairs[time]:
+#                     demand  = random.randint(2, 3)
+#                     each_pair_demand[user_pair] = demand
+#             if time==number_of_time_slots-1:
+#                 for user_pair in each_t_user_pairs[time]:
+#                     demand  = random.randint(1000, 1500)
+#                     each_pair_demand[user_pair] = demand
+# #             each_pair_demand[user_pairs[0]] = demand1
+# #             each_pair_demand[user_pairs[1]] = demand2
+#             for request in each_t_user_pairs[time]:
+#                 demand =each_pair_demand[request]
+#                 try:
+#                     self.each_t_each_request_demand[time][request] = demand
+#                 except:
+#                     self.each_t_each_request_demand[time] = {}
+#                     self.each_t_each_request_demand[time][request] = demand
+                
+                
+        for request in each_t_user_pairs[time]:
             try:
                 self.each_t_each_request_demand[0][request] = 0
             except:
@@ -117,9 +234,9 @@ class Work_load(object):
 #                         except:
 #                             self.each_t_real_requests[time] = user_pairs
                 
-    def check_demands_per_each_time(self,user_pairs):
+    def check_demands_per_each_time(self,each_t_user_pairs):
         for time in self.T:
-            for user_pair in user_pairs:
+            for user_pair in each_t_user_pairs[time]:
                 if self.each_t_each_request_demand[time][user_pair]==0:
                     self.each_t_each_request_demand[time][user_pair] = 1.0
             
@@ -127,7 +244,8 @@ class Work_load(object):
         for time in self.T:
             for pair in storage_pairs:
                 try:
-                    self.each_t_requests[time].append(pair)
+                    if pair not in self.each_t_requests[time]:
+                        self.each_t_requests[time].append(pair)
                 except:
                     self.each_t_requests[time] =[pair]
                 try:
@@ -135,14 +253,14 @@ class Work_load(object):
                 except:
                     self.each_t_each_request_demand[time] = {}
                     self.each_t_each_request_demand[time][pair] = 0
-    def set_threshold_fidelity_for_request_pairs(self,user_pairs,storage_pairs):
-        for pair in user_pairs:
-            for time in self.T:
+    def set_threshold_fidelity_for_request_pairs(self,each_t_user_pairs,storage_pairs,each_user_request_fidelity_threshold):
+        for time,pairs in each_t_user_pairs.items():
+            for pair in pairs:
                 try:
-                    self.each_request_threshold[pair][time]= self.each_user_request_fidelity_threshold[pair]
+                    self.each_request_threshold[pair][time]= each_user_request_fidelity_threshold[pair]
                 except:
                     self.each_request_threshold[pair] = {}
-                    self.each_request_threshold[pair][time] = self.each_user_request_fidelity_threshold[pair] 
+                    self.each_request_threshold[pair][time] = each_user_request_fidelity_threshold[pair] 
         for pair in storage_pairs:
             for time in self.T:
                 try:
@@ -163,14 +281,15 @@ class Work_load(object):
     
 
 
-# In[2]:
+# In[1]:
 
 
-for time in range(0,15):
-    if time%2==0:
-        print("low")
-    else:
-        print("high")
+# for time in range(0,15):
+#     if time%2==0:
+#         print("low")
+#     else:
+#         print("high")
+#     print(time)
 
 
 # In[46]:

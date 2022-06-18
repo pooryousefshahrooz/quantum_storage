@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[2]:
 
 
 import networkx as nx
@@ -33,6 +33,7 @@ class Network:
                             4:[(1,2),(2,5),(5,6)],5:[(1,2),(2,5),(5,6)],
                             6:[(2,10),(10,12),(12,5)],
                             7:[(1,2),(2,10),(10,12),(12,5),(5,6)]}
+        self.set_of_paths = {}
         self.each_path_basic_fidelity = {0:0.7,
                              1:0.8,
                             2:0.75,
@@ -63,7 +64,12 @@ class Network:
         self.each_user_pair_real_paths = {}
         self.each_user_pair_virtual_paths = {}
         self.nodes = []
+        self.each_t_user_pairs = {}
+        self.each_storage_real_paths = {}
+        self.each_request_virtual_paths_include_subpath = {}
+        self.each_path_path_id = {}
         self.load_topology()
+#         self.load_testing_topology()
 #         self.g = nx.Graph()
 #         self.modified_g = nx.Graph()
 #         for each_edge in self.each_edge_capacity:
@@ -82,12 +88,7 @@ class Network:
 #         self.g.add_edge(9,5,weight=1)
         #nx.draw(g,with_labels=True)
         #plt.show()
-        self.user_pairs = []
-        candidate_user_pairs = [(1,6),(2,10),(4,8),(6,11),(5,10),(3,9),(8,10),(0,3),(1,10),(2,5)]
-        while(len(self.user_pairs)<2):
-            user_pair = candidate_user_pairs[random.randint(0,len(candidate_user_pairs)-1)]
-            if user_pair not in self.user_pairs:
-                self.user_pairs.append(user_pair)
+        
         
         self.each_path_legth = {}
         
@@ -96,10 +97,99 @@ class Network:
 
         #self.load_topology()
         #self.calculate_paths()
+    def get_user_pairs_over_dynamicly_chaning_population(self,number_of_user_pairs,distance_between_users,number_of_time_slots):
+        self.each_t_user_pairs = {}
+        candidate_user_pairs = []
+
+        for src in self.nodes:
+            for dst in self.nodes:
+                if src!=dst and (src,dst) not in self.set_E and (dst,src) not in self.set_E:
+                    shortest_path = nx.shortest_path(self.g, source=src, target=dst)
+                    if len(shortest_path)>=distance_between_users:
+                        if (src,dst) not in candidate_user_pairs and (dst,src) not in candidate_user_pairs:
+                            candidate_user_pairs.append((src,dst))
+        #print("these are candidate pairs",candidate_user_pairs)
+        #candidate_user_pairs = [(1,6),(2,10),(4,8),(6,11),(5,10),(3,9),(8,10),(0,3),(1,10),(2,5)]
+        for t in range(number_of_time_slots):
+            self.each_t_user_pairs[t] = []
+        selected_user_pairs = []
+        while(len(candidate_user_pairs)<number_of_time_slots *number_of_user_pairs):
+            number_of_user_pairs =number_of_user_pairs-1
+            
+        for t in range(number_of_time_slots):
+            while(len(self.each_t_user_pairs[t])<number_of_user_pairs):
+                user_pair = candidate_user_pairs[random.randint(0,len(candidate_user_pairs)-1)]
+                if user_pair not in self.each_t_user_pairs[t] and user_pair not in selected_user_pairs:
+                    selected_user_pairs.append(user_pair)
+                    try:
+                        self.each_t_user_pairs[t].append(user_pair)
+                    except:
+                        self.each_t_user_pairs[t]=[user_pair]
+    def get_testing_user_pairs(self,number_of_user_pairs,distance,number_of_time_slots):
+        self.each_t_user_pairs = {}
+        candidate_user_pairs = []
+        for src in self.nodes:
+            for dst in self.nodes:
+                if src!=dst and (src,dst) not in self.set_E and (dst,src) not in self.set_E:
+                    shortest_path = nx.shortest_path(self.g, source=src, target=dst)
+                    if len(shortest_path)>=distance:
+                        if (src,dst) not in candidate_user_pairs and (dst,src) not in candidate_user_pairs:
+                            candidate_user_pairs.append((src,dst))
+        candidate_user_pairs.append((1,5))
+        #print("these are candidate pairs",candidate_user_pairs)
+        #candidate_user_pairs = [(1,6),(2,10),(4,8),(6,11),(5,10),(3,9),(8,10),(0,3),(1,10),(2,5)]
+        for t in range(number_of_time_slots):
+            self.each_t_user_pairs[t] = []
+        selected_fixed_user_pairs = []
+        while(len(selected_fixed_user_pairs)<number_of_user_pairs):
+            user_pair = candidate_user_pairs[random.randint(0,len(candidate_user_pairs)-1)]
+            if user_pair not in selected_fixed_user_pairs:
+                selected_fixed_user_pairs.append(user_pair)
+        for t in range(number_of_time_slots):
+            try:
+                self.each_t_user_pairs[t]= [(1,5)]
+            except:
+                self.each_t_user_pairs[t]= [(1,5)]
+    def get_user_pairs(self,number_of_user_pairs,distance,number_of_time_slots):
+        self.each_t_user_pairs = {}
+        candidate_user_pairs = []
+        for src in self.nodes:
+            for dst in self.nodes:
+                if src!=dst and (src,dst) not in self.set_E and (dst,src) not in self.set_E:
+                    shortest_path = nx.shortest_path(self.g, source=src, target=dst)
+                    if len(shortest_path)>=distance:
+                        if (src,dst) not in candidate_user_pairs and (dst,src) not in candidate_user_pairs:
+                            candidate_user_pairs.append((src,dst))
+        #print("these are candidate pairs",candidate_user_pairs)
+        #candidate_user_pairs = [(1,6),(2,10),(4,8),(6,11),(5,10),(3,9),(8,10),(0,3),(1,10),(2,5)]
+        for t in range(number_of_time_slots):
+            self.each_t_user_pairs[t] = []
+        selected_fixed_user_pairs = []
+        while(len(selected_fixed_user_pairs)<number_of_user_pairs):
+            user_pair = candidate_user_pairs[random.randint(0,len(candidate_user_pairs)-1)]
+            if user_pair not in selected_fixed_user_pairs:
+                selected_fixed_user_pairs.append(user_pair)
+        for t in range(number_of_time_slots):
+            try:
+                self.each_t_user_pairs[t]= selected_fixed_user_pairs
+            except:
+                self.each_t_user_pairs[t]= selected_fixed_user_pairs
+                    
+    def set_user_pair_fidelity_threshold(self):
+        self.each_user_request_fidelity_threshold = {}
+        possible_thresholds = [0.6,0.7,0.8,0.9,1.0]
+        for t,user_pairs in self.each_t_user_pairs.items():
+            for pair in user_pairs:
+                self.each_user_request_fidelity_threshold[pair] = possible_thresholds[random.randint(0,len(possible_thresholds)-1)]
+
     def set_each_path_length(self,path_id,path):
         self.each_path_legth[path_id] = len(path)
     
-                
+    def check_if_request_uses_this_sub_path(self,k,p,p_s):
+        if p in self.each_request_virtual_paths_include_subpath[k][p_s]:
+            return True
+        else:
+            return False
         
     def remove_storage_pair_real_path_from_path(self,sub_path,path):
         A = path
@@ -124,22 +214,28 @@ class Network:
     
 
     def set_required_EPR_pairs_for_path_fidelity_threshold(self):
-        basic_threshold = 0.1
         for path in self.set_of_paths:
             for f in [0.6,0.7,0.8,0.9,1.0]:
-                n = 1
-                final_fidelity = f
-                if final_fidelity!=1.0:
-                    while final_fidelity <=0.999:
-                        n+=1
-                        final_fidelity = self.recursive_purification(n,f)
-                else:
-                    n=1
                 try:
-                    self.oracle_for_target_fidelity[path][f] = n
+                    self.oracle_for_target_fidelity[path][f] = 4
                 except:
                     self.oracle_for_target_fidelity[path] = {}
-                    self.oracle_for_target_fidelity[path][f] = n
+                    self.oracle_for_target_fidelity[path][f] = 4
+#         for path in self.set_of_paths:
+#             for f in [0.6,0.7,0.8,0.9,1.0]:
+#                 n = 1
+#                 final_fidelity = f
+#                 if final_fidelity!=1.0:
+#                     while final_fidelity <=0.999:
+#                         n+=1
+#                         final_fidelity = self.recursive_purification(n,f)
+#                 else:
+#                     n=1
+#                 try:
+#                     self.oracle_for_target_fidelity[path][f] = n
+#                 except:
+#                     self.oracle_for_target_fidelity[path] = {}
+#                     self.oracle_for_target_fidelity[path][f] = n
     def set_storage_capacity(self):
         for storage_node in self.storage_nodes:
             self.each_storage_capacity[storage_node] =1000
@@ -152,54 +248,90 @@ class Network:
             return self.oracle_for_target_fidelity[p][0.7]
         else:
             return 1
+    def get_testing_new_storage_pairs(self,number_of_storages): 
+        if number_of_storages>0:
+            self.storage_pairs.append((2,4))
+            self.storage_nodes.append(2)
+            self.storage_nodes.append(4)
+        else:
+            self.storage_pairs= []
+            self.storage_nodes= []
+            
     def get_new_storage_pairs(self,number_of_storages):
+        
+        
+        
         new_selected_storage_nodes = []
         new_selected_storage_pairs = []
         user_pair_nodes = set([])
-        for user_pair in self.user_pairs: 
-            user_pair_nodes.add(user_pair[0])
-            user_pair_nodes.add(user_pair[1])
+        for t,user_pairs in self.each_t_user_pairs.items():
+            for user_pair in user_pairs:
+                user_pair_nodes.add(user_pair[0])
+                user_pair_nodes.add(user_pair[1])
         user_pair_nodes = list(user_pair_nodes)
         permitted_nodes = []
         for node in self.nodes:
             if node not in user_pair_nodes and node not in self.storage_nodes:
                 permitted_nodes.append(node)
-        #print("we have permitted node as ",permitted_nodes,len(self.storage_nodes),number_of_storages)
-        while(len(self.storage_nodes)<number_of_storages):
-            storage1 = permitted_nodes[0]
-            while(storage1 in self.storage_nodes):
-                storage1 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
-            #print("we selected new storage node %s"%(storage1))
-            if  self.storage_pairs:
-                for storage_node in self.storage_nodes:
-                    if ((storage1,storage_node) not in self.storage_pairs and (storage_node,storage1) not in self.storage_pairs) and storage1!=storage_node:
-                        self.storage_pairs.append((storage1,storage_node))
-                if storage1 not in self.storage_nodes:
-                    self.storage_nodes.append(storage1)
-            else:
-                storage1 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
-                storage2 = storage1
-                while(storage1==storage2):
-                    storage2 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
-                #print("for round  we have new storage node %s"%(storage1))
-                if (storage1,storage2) not in self.storage_pairs and (storage2,storage1) not in self.storage_pairs:
-                    self.storage_pairs.append((storage1,storage2))
-                    self.storage_nodes.append(storage1)
-                    self.storage_nodes.append(storage2)
-                #print("this is our first storage pair",self.storage_pairs)
+        #print("we have permitted node as ",permitted_nodes,len(self.storage_nodes),number_of_storages,len(user_pair_nodes),user_pair_nodes)
+        if len(permitted_nodes)+len(self.storage_nodes)<=number_of_storages:
+            for storage1 in permitted_nodes:
+                for storage2 in permitted_nodes:
+                    if storage1 != storage2:
+                        if (storage1,storage2) not in self.storage_pairs and (storage2,storage1) not in self.storage_pairs:
+                            self.storage_pairs.append((storage1,storage2))
+                            self.storage_nodes.append(storage1)
+                            self.storage_nodes.append(storage2)
+
+        else:
+            while(len(self.storage_nodes)<number_of_storages and len(permitted_nodes)>0):
+                storage1 = permitted_nodes[0]
+                while(storage1 in self.storage_nodes):
+                    storage1 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
+                #print("we selected new storage node %s"%(storage1))
+                if self.storage_pairs:
+                    for storage_node in self.storage_nodes:
+                        if ((storage1,storage_node) not in self.storage_pairs and (storage_node,storage1) not in self.storage_pairs) and storage1!=storage_node:
+                            self.storage_pairs.append((storage1,storage_node))
+                    if storage1 not in self.storage_nodes:
+                        self.storage_nodes.append(storage1)
+                else:
+                    storage1 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
+                    storage2 = storage1
+                    while(storage1==storage2):
+                        storage2 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
+                    #print("for round  we have new storage node %s"%(storage1))
+                    if (storage1,storage2) not in self.storage_pairs and (storage2,storage1) not in self.storage_pairs:
+                        self.storage_pairs.append((storage1,storage2))
+                        self.storage_nodes.append(storage1)
+                        self.storage_nodes.append(storage2)
+                    #print("this is our first storage pair",self.storage_pairs)
     def reset_pair_paths(self):
+        self.set_of_paths = {}
         self.each_user_pair_all_real_paths = {}
+        self.each_request_real_paths = {}
+        self.each_request_virtual_paths = {}
+        self.each_request_virtual_paths_include_subpath = {}
+        self.each_path_path_id = {}
+        self.each_storage_real_paths = {}
     
-    def get_each_user_pair_real_paths(self,user_pairs):
-        for user_pair in user_pairs:
+    def get_each_user_pair_real_paths(self,pairs):
+        #print("we are getting all paths for pairs ",pairs)
+        for user_pair in pairs:
             shortest_paths = nx.all_shortest_paths(self.g,source=user_pair[0],target=user_pair[1], weight='weight')
-            self.each_user_pair_all_real_paths[user_pair] = shortest_paths
-    def get_real_path(self,user_pair,number_of_paths):
+            paths = []
+            for p in shortest_paths:
+                paths.append(p)
+            self.each_user_pair_all_real_paths[user_pair] = paths
+#             for path in paths:
+#                 print("for pair %s we have these shortest paths %s"%(user_pair,len(path)))
+    def get_real_path(self,user_or_storage_pair,number_of_paths):
         path_selecion_flag = False
         path_counter = 1
         paths = []
-        
-        for path in self.each_user_pair_all_real_paths[user_pair]:
+        #print("self.each_user_pair_all_real_paths[user_or_storage_pair]",self.each_user_pair_all_real_paths[user_or_storage_pair])
+        for path in self.each_user_pair_all_real_paths[user_or_storage_pair]:
+            #print("we can add this path",path)
             if path_counter<=number_of_paths:
                 node_indx = 0
                 path_edges = []
@@ -221,11 +353,13 @@ class Network:
         print('[*] Loading topology...', self.topology_file)
         f = open(self.topology_file, 'r')
         header = f.readline()
-        f.readline()
+        #f.readline()
 #         self.link_capacities = np.empty((self.num_links))
 #         self.link_weights = np.empty((self.num_links))
         for line in f:
+            line = line.strip()
             link = line.split('\t')
+            #print(line,link)
             i, s, d, c = link
             if int(s) not in self.nodes:
                 self.nodes.append(int(s))
@@ -233,7 +367,8 @@ class Network:
                 self.nodes.append(int(d))
             
             self.set_E.append((int(s),int(d)))
-            random_capacity = random.randint(180, 600)
+            random_capacity = random.randint(100, 400)
+            
             self.each_edge_capacity[(int(s),int(d))] = random_capacity
             if random_capacity>self.max_edge_capacity:
                 self.max_edge_capacity  = random_capacity
@@ -248,28 +383,47 @@ class Network:
 #         nx.draw_networkx(self.DG)
 #         plt.show()
         
-    def get_virtual_path(self,user_pair,storage_pair,real_sub_path):
-        path_selecion_flag = False
-        shortest_paths = nx.all_shortest_paths(self.g,source=user_pair[0],target=user_pair[1], weight='weight')
-        for path in shortest_paths:
-            #print("for path with removed graph",path)
-            node_indx = 0
-            path_edges = []
-            for node_indx in range(len(path)-1):
-                path_edges.append((path[node_indx],path[node_indx+1]))
-                node_indx+=1
-            if not path_selecion_flag:
-                try:
-                    if path_edges not in self.each_user_pair_virtual_paths[user_pair] and storage_pair in path_edges:
-                        self.each_user_pair_virtual_paths[user_pair].append(path_edges)
-                        #print("we added path %s for user pair %s"%(path,user_pair))
-                        path_selecion_flag = True
-
-                except:
-                    if storage_pair in path_edges:
-                        self.each_user_pair_virtual_paths[user_pair]=[path_edges]
-                        path_selecion_flag = True
-                        #print("we added path %s for user pair %s"%(path,user_pair))
+    def load_testing_topology(self):
+       
+        self.set_E=[]
+        self.each_edge_capacity={}
+        self.nodes = []
+        self.max_edge_capacity = 0
+        self.g = nx.Graph()
+        print('[*] Loading topology...', self.topology_file)
+        f = open(self.topology_file, 'r')
+        header = f.readline()
+#         f.readline()
+#         self.link_capacities = np.empty((self.num_links))
+#         self.link_weights = np.empty((self.num_links))
+        for line in f:
+            line = line.strip()
+            link = line.split('\t')
+            print(line,link)
+            i, s, d, c = link
+            if int(s) not in self.nodes:
+                self.nodes.append(int(s))
+            if int(d) not in self.nodes:
+                self.nodes.append(int(d))
+            
+            self.set_E.append((int(s),int(d)))
+            random_capacity = random.randint(200, 400)
+            
+            if (int(s),int(d)) ==(1,2) or (int(s),int(d))== (4,5) or (int(s),int(d)) == (2,1) or (int(s),int(d)) == (5,4):
+                random_capacity = 100
+            else:
+                random_capacity = 10
+            print("for edge ",(int(s),int(d)),"capacity is ",random_capacity)
+            self.each_edge_capacity[(int(s),int(d))] = random_capacity
+            if random_capacity>self.max_edge_capacity:
+                self.max_edge_capacity  = random_capacity
+            self.g.add_edge(int(s),int(d),weight=1)
+#             self.link_capacities[int(i)] = float(c)
+#             self.link_weights[int(i)] = int(w)
+#             self.DG.add_weighted_edges_from([(int(s),int(d),int(w))])
+#             self.set_E.append()
+        
+        f.close()    
                     
     def join_users_to_storages(self,src,dst,str1,str2,real_sub_path,number_of_paths):
         #print("we are going to connect node %s to %s and %s to %s"%(src,str1,str2,dst))
@@ -321,7 +475,11 @@ class Network:
         for path in self.set_of_paths:
             basic_fidelity = basic_fidelities[random.randint(0,len(basic_fidelities)-1)]
             self.each_path_basic_fidelity[path]= basic_fidelity
-        
+    def check_path_include_sub_path2(self,k,sub_path_id,path_id):
+        if path_id in self.each_request_virtual_paths_include_subpath[k][sub_path_id]:
+            return True
+        else:
+            return False   
     def check_path_include_sub_path(self,sub_path,path):
         if self.set_of_paths[sub_path] in self.set_of_paths[path]:
             return True
@@ -377,6 +535,12 @@ class Network:
 
     
     
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:
@@ -552,19 +716,62 @@ class Network:
 #     # This code is contributed by PranchalK
 
 
-# In[ ]:
+# In[5]:
 
 
+def generate_random_topologies():
+    avg_degrees = []
+    avg_edges = []
+    for i in range(20):
+        degrees = []
+    #     graph = nx.erdos_renyi_graph(50, 0.05, seed=None, directed=False)
+        graph = nx.barabasi_albert_graph(50, 2)
+        set_of_E = set([])
+    #     file1 = open("data/random_erdos_renyi2_"+str(i)+".txt", "w")
+        file1 = open("data/random_barabasi_albert2_"+str(i)+".txt", "w")
+        file1.writelines("Link_index	Source	Destination	Capacity(kbps)"+"\n")
+        edge_counter = 0
+        for e in graph.edges:
+            #print(e)
+            file1.writelines(str(edge_counter)+"\t"+str(e[0])+"\t"+str(e[1])+"\t"+"1"+"\n")
+            edge_counter+=1
+            set_of_E.add(e)
+        #file1.close()
+        #print(len(list(set_of_E)))
+        avg_edges.append(len(list(set_of_E)))
+        for node in graph.nodes:
+            degrees.append(graph.degree[node])
+        avg_degrees.append(sum(degrees)/len(degrees))
+    print("avg degree %s and avg edges %s "%(sum(avg_degrees)/len(avg_degrees),sum(avg_edges)/len(avg_edges)))
 
 
-
-# In[ ]:
-
+# In[18]:
 
 
+# avg_degrees = []
+# avg_edges = []
+# for i in range(20):
+#     degrees = []
+#     graph = nx.barabasi_albert_graph(50, 3)
+#     set_of_E = set([])
+#     file1 = open("data/random_barabasi_albert_"+str(i)+".txt", "w")
+#     file1.writelines("Link_index	Source	Destination	Capacity(kbps)"+"\n")
+#     edge_counter = 0
+#     for e in graph.edges:
+#         #print(e)
+#         file1.writelines(str(edge_counter)+"\t"+str(e[0])+"\t"+str(e[1])+"\t"+"1"+"\n")
+#         edge_counter+=1
+#         set_of_E.add(e)
+#     #file1.close()
+#     #print(len(list(set_of_E)))
+#     avg_edges.append(len(list(set_of_E)))
+#     for node in graph.nodes:
+#         degrees.append(graph.degree[node])
+#     avg_degrees.append(sum(degrees)/len(degrees))
+# print("avg degree %s and avg edges %s "%(sum(avg_degrees)/len(avg_degrees),sum(avg_edges)/len(avg_edges)))
 
 
-# In[ ]:
+# In[14]:
 
 
 
@@ -668,5 +875,57 @@ class Network:
 #             print("do the rest of the optimization")
 #         else:
 #             print("better stop becasue no new paths")
+
+
+
+# In[8]:
+
+
+def get_topologies_properties():
+    import networkx as nx
+    list_of_topologies = []
+
+    # list_of_topologies = ["data/ATT_topology_file",'data/abilene','data/Surfnet']
+    for i in range(10):
+    #     list_of_topologies.append("data/random_erdos_renyi_"+str(i)+".txt")
+        list_of_topologies.append("data/random_barabasi_albert_"+str(i)+".txt")
+    all_degrees=[]
+    all_edges=[]
+    all_diameters=[]
+    for top in list_of_topologies:
+        graph = nx.Graph()
+        set_of_E = set([])
+        f = open(top, 'r')
+        header = f.readline()
+        #f.readline()
+        #         self.link_capacities = np.empty((self.num_links))
+        #         self.link_weights = np.empty((self.num_links))
+        for line in f:
+            line = line.strip()
+            link = line.split('\t')
+
+            i, s, d, c = link
+            graph.add_edge(s,d,weight=1)
+            set_of_E.add((s,d))
+
+        degrees = []
+        for node in graph.nodes:
+            degrees.append(graph.degree[node])
+        print("for topology %s we have #nodes %s edges %s degree %s diameter %s"%
+              (top,len(graph.nodes),len(list(set_of_E)),sum(degrees)/len(degrees),nx.diameter(graph)))
+        all_degrees.append(sum(degrees)/len(degrees))
+        all_edges.append(len(list(set_of_E)))
+        all_diameters.append(nx.diameter(graph))
+    print("avg edges %s avg degree %s avg diameter %s "%
+          (sum(all_edges)/len(all_edges),sum(all_degrees)/len(all_degrees),sum(all_diameters)/len(all_diameters)))
+
+    #     print("degree is ",sum(degrees)/len(degrees))
+    #     print("edges is ",len(list(set_of_E)))
+    #     print("nodes is ",len(graph.nodes))
+
+
+# In[ ]:
+
+
 
 

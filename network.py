@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 import networkx as nx
 import matplotlib.pyplot as plt
 import random
+import time
 
 
 # In[ ]:
@@ -68,7 +69,10 @@ class Network:
         self.each_storage_real_paths = {}
         self.each_request_virtual_paths_include_subpath = {}
         self.each_path_path_id = {}
+        self.global_each_basic_fidelity_target_fidelity_required_EPRs = {}
+        self.all_basic_fidelity_target_thresholds = []
         self.load_topology()
+        
 #         self.load_testing_topology()
 #         self.g = nx.Graph()
 #         self.modified_g = nx.Graph()
@@ -175,12 +179,15 @@ class Network:
             except:
                 self.each_t_user_pairs[t]= selected_fixed_user_pairs
                     
-    def set_user_pair_fidelity_threshold(self):
+    def set_user_pair_fidelity_threshold(self,fidelity_threshold_range):
         self.each_user_request_fidelity_threshold = {}
-        possible_thresholds = [0.6,0.7,0.8,0.9,1.0]
+        possible_thresholds = [0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,0.98,1.0]
+        possible_thresholds_based_on_given_range = []
+        
+        possible_thresholds_based_on_given_range.append(fidelity_threshold_range)
         for t,user_pairs in self.each_t_user_pairs.items():
             for pair in user_pairs:
-                self.each_user_request_fidelity_threshold[pair] = possible_thresholds[random.randint(0,len(possible_thresholds)-1)]
+                self.each_user_request_fidelity_threshold[pair] = possible_thresholds_based_on_given_range[random.randint(0,len(possible_thresholds_based_on_given_range)-1)]
 
     def set_each_path_length(self,path_id,path):
         self.each_path_legth[path_id] = len(path)
@@ -212,15 +219,170 @@ class Network:
             denominator = numerator + (1-f) * (1-self.recursive_purification(n-1,f))
             return round(numerator/(denominator),4)
     
+    def get_possible_threshold_for_each_n(self,basic_fidelities):
+    #         for path in self.set_of_paths:
+    #             for f in [0.6,0.7,0.8,0.9,1.0]:
+    #                 try:
+    #                     self.oracle_for_target_fidelity[path][f] = 4
+    #                 except:
+    #                     self.oracle_for_target_fidelity[path] = {}
+    #                     self.oracle_for_target_fidelity[path][f] = 4
+        n_values = []
+        each_basic_fidelity_each_EPR_number_target_fidelity = {}
 
+        for f in basic_fidelities:
+            n = 1
+            each_basic_fidelity_each_EPR_number_target_fidelity[f] = {}
+            final_fidelity = f
+            if n not in n_values:
+                n_values.append(n)
+            each_basic_fidelity_each_EPR_number_target_fidelity[f][n] = final_fidelity
+            #print("for basic fidelity ",str(f))
+            while n <20:
+                n+=1
+                if n not in n_values:
+                    n_values.append(n)
+                final_fidelity = self.recursive_purification(n,f)
+                each_basic_fidelity_each_EPR_number_target_fidelity[f][n] = final_fidelity
+            #print("for basic fidelity ",str(f),"we are done!")
+        return each_basic_fidelity_each_EPR_number_target_fidelity,n_values
     def set_required_EPR_pairs_for_path_fidelity_threshold(self):
-        for path in self.set_of_paths:
-            for f in [0.6,0.7,0.8,0.9,1.0]:
-                try:
-                    self.oracle_for_target_fidelity[path][f] = 4
-                except:
-                    self.oracle_for_target_fidelity[path] = {}
-                    self.oracle_for_target_fidelity[path][f] = 4
+        targets = [0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,0.98,1.0]
+        basic_fidelities = []
+        for path,basic_fidelity in self.each_path_basic_fidelity.items():
+            if basic_fidelity not in self.all_basic_fidelity_target_thresholds:
+                self.all_basic_fidelity_target_thresholds.append(basic_fidelity)
+                if basic_fidelity not in basic_fidelities:
+                    basic_fidelities.append(basic_fidelity)
+                    
+        if basic_fidelities:
+#             print("we are going to get required EPRs to each thresholds for basics",basic_fidelities)
+#             time.sleep(10)
+            each_basic_fidelity_each_EPR_number_target_fidelity , n_values=self.get_possible_threshold_for_each_n(basic_fidelities)
+            each_basic_fidelity_target_fidelity_required_EPRs = {}
+            each_basic_available_targets= {}
+            for basic_fidelity,n_final_fidelity in each_basic_fidelity_each_EPR_number_target_fidelity.items():
+                each_basic_fidelity_target_fidelity_required_EPRs[basic_fidelity] = {}
+                each_basic_available_targets[basic_fidelity] = {}
+                available_targets = []
+                for n,final_fidelity in n_final_fidelity.items():
+            #         print("with basic %s to reach %s you need %s"%(basic_fidelity,final_fidelity,n))
+                    if final_fidelity<=0.6:
+                        target_fidelity_threshold = 0.6
+                    elif final_fidelity<=0.65:
+                        target_fidelity_threshold = 0.65
+                    elif final_fidelity<=0.7:
+                        target_fidelity_threshold = 0.7
+                    elif final_fidelity<=0.75:
+                        target_fidelity_threshold = 0.75
+                    elif final_fidelity<=0.8:
+                        target_fidelity_threshold = 0.8
+                    elif final_fidelity<=0.85:
+                        target_fidelity_threshold = 0.85
+                    elif final_fidelity<=0.9:
+                        target_fidelity_threshold = 0.9
+                    elif final_fidelity<=0.95:
+                        target_fidelity_threshold = 0.95 
+                    elif final_fidelity<=0.98:
+                        target_fidelity_threshold = 0.98
+                    elif final_fidelity<=1:
+                        target_fidelity_threshold = 1
+            #         print("for basic fidelity %s with %s you will get %s "%(basic_fidelity,n,final_fidelity))
+                    if target_fidelity_threshold not in available_targets:
+                        available_targets.append(target_fidelity_threshold)
+                    try:
+                        each_basic_fidelity_target_fidelity_required_EPRs[basic_fidelity][target_fidelity_threshold].append(n)
+                    except:
+                        each_basic_fidelity_target_fidelity_required_EPRs[basic_fidelity][target_fidelity_threshold]=[n]
+    #             print("available_targets        ",available_targets)
+    #             print("targets                  ",targets)
+
+                each_basic_available_targets[basic_fidelity] = available_targets
+                targets.sort()
+                for target in targets:
+                    if target <= basic_fidelity:
+                        each_basic_fidelity_target_fidelity_required_EPRs[basic_fidelity][target]=[1]
+                        try:
+                            if target not in each_basic_available_targets[basic_fidelity]:
+                                each_basic_available_targets[basic_fidelity].append(target)
+                        except:
+                            each_basic_available_targets[basic_fidelity]=[target]
+                for target in targets:
+            #         print("with basic %s for target %s"%(basic_fidelity,target))
+                    if target in available_targets:
+                        last_target_threshold_n = min(each_basic_fidelity_target_fidelity_required_EPRs[basic_fidelity][target])
+                        last_available_target_threshold = target
+                    if target not in available_targets:
+                        try:
+                            each_basic_fidelity_target_fidelity_required_EPRs[basic_fidelity][target].append(last_target_threshold_n)
+                        except:
+                            each_basic_fidelity_target_fidelity_required_EPRs[basic_fidelity][target]=[last_target_threshold_n]
+
+
+
+            for basic in each_basic_fidelity_target_fidelity_required_EPRs:
+                for path,path_basic_fidelity in self.each_path_basic_fidelity.items():
+                    if path_basic_fidelity==basic:
+                        for target in targets:
+                            required_EPRs = each_basic_fidelity_target_fidelity_required_EPRs[basic][target]
+                            try:
+                                self.oracle_for_target_fidelity[path][target] = min(required_EPRs)
+#                                 print("for path %s to target %s we added %s"%(path,target,min(required_EPRs)))
+                            except:
+                                self.oracle_for_target_fidelity[path] = {}
+                                self.oracle_for_target_fidelity[path][target] = min(required_EPRs)
+#                                 print("for path %s to target %s we added %s"%(path,target,min(required_EPRs)))
+                                
+            for basic,target_EPRs in each_basic_fidelity_target_fidelity_required_EPRs.items():
+                self.global_each_basic_fidelity_target_fidelity_required_EPRs[basic] = target_EPRs
+                
+            for path,path_basic_fidelity in self.each_path_basic_fidelity.items():
+                if path_basic_fidelity not in basic_fidelities:
+                    for target in targets:
+                        required_EPRs = self.global_each_basic_fidelity_target_fidelity_required_EPRs[path_basic_fidelity][target]
+                        try:
+                            self.oracle_for_target_fidelity[path][target] = min(required_EPRs)
+#                             print("from storage: for path %s to target %s we added %s"%(path,target,min(required_EPRs)))
+                        except:
+                            self.oracle_for_target_fidelity[path] = {}
+                            self.oracle_for_target_fidelity[path][target] = min(required_EPRs)
+#                             print("from storage: for path %s to target %s we added %s"%(path,target,min(required_EPRs)))
+#             for path,target_n in self.oracle_for_target_fidelity.items():
+#                 for t,n in target_n.items():
+#                     print("for path %s to reach %s we need %s"%(path,t,n))
+#             time.sleep(5)
+        else:
+#             print("we have already computed required EPR pairs to reach threshold for each basic fidelity")
+#             time.sleep(10)
+            for path,path_basic_fidelity in self.each_path_basic_fidelity.items():
+                for target in targets:
+                    required_EPRs = self.global_each_basic_fidelity_target_fidelity_required_EPRs[path_basic_fidelity][target]
+                    try:
+                        self.oracle_for_target_fidelity[path][target] = min(required_EPRs)
+#                         print("from storage: for path %s to target %s we added %s"%(path,target,min(required_EPRs)))
+                    except:
+                        self.oracle_for_target_fidelity[path] = {}
+                        self.oracle_for_target_fidelity[path][target] = min(required_EPRs)
+#         for path,target_EPRs in self.oracle_for_target_fidelity.items():
+#             for target,EPRs in target_EPRs.items():
+#                 print("for path %s for threshold %s we need %s"%(path,target,EPRs))
+                        
+#                         print("from storage: for path %s to target %s we added %s"%(path,target,min(required_EPRs)))
+#             for path,target_n in self.oracle_for_target_fidelity.items():
+#                 for t,n in target_n.items():
+#                     print("for path %s to reach %s we need %s"%(path,t,n))
+#             time.sleep(5)
+            import pdb
+            #pdb.set_trace()
+            
+            
+#         for path in self.set_of_paths:
+#             for f in [0.6,0.7,0.8,0.9,1.0]:
+#                 try:
+#                     self.oracle_for_target_fidelity[path][f] = 4
+#                 except:
+#                     self.oracle_for_target_fidelity[path] = {}
+#                     self.oracle_for_target_fidelity[path][f] = 4
 #         for path in self.set_of_paths:
 #             for f in [0.6,0.7,0.8,0.9,1.0]:
 #                 n = 1
@@ -240,6 +402,8 @@ class Network:
         for storage_node in self.storage_nodes:
             self.each_storage_capacity[storage_node] =1000
     def get_required_purification_EPR_pairs(self,p,threshold):
+#         print("we are getting the required EPR pairs for path %s to reach threshold %s"%(p,threshold))
+        return self.oracle_for_target_fidelity[p][threshold]
         if threshold>=0.9:
             return self.oracle_for_target_fidelity[p][0.9]
         elif 0.8<threshold<0.9:
@@ -257,55 +421,97 @@ class Network:
             self.storage_pairs= []
             self.storage_nodes= []
             
-    def get_new_storage_pairs(self,number_of_storages):
+    def get_new_storage_pairs(self,number_of_storages,storage_node_selection_scheme):
         
         
-        
-        new_selected_storage_nodes = []
-        new_selected_storage_pairs = []
-        user_pair_nodes = set([])
-        for t,user_pairs in self.each_t_user_pairs.items():
-            for user_pair in user_pairs:
-                user_pair_nodes.add(user_pair[0])
-                user_pair_nodes.add(user_pair[1])
-        user_pair_nodes = list(user_pair_nodes)
-        permitted_nodes = []
-        for node in self.nodes:
-            if node not in user_pair_nodes and node not in self.storage_nodes:
-                permitted_nodes.append(node)
-        #print("we have permitted node as ",permitted_nodes,len(self.storage_nodes),number_of_storages,len(user_pair_nodes),user_pair_nodes)
-        if len(permitted_nodes)+len(self.storage_nodes)<=number_of_storages:
-            for storage1 in permitted_nodes:
-                for storage2 in permitted_nodes:
-                    if storage1 != storage2:
+        if storage_node_selection_scheme == "Degree":
+            user_pair_nodes = set([])
+            for t,user_pairs in self.each_t_user_pairs.items():
+                for user_pair in user_pairs:
+                    user_pair_nodes.add(user_pair[0])
+                    user_pair_nodes.add(user_pair[1])
+            user_pair_nodes = list(user_pair_nodes)
+            each_degree_nodes = {}
+            degrees = []
+            candidate_nodes = []
+            for node in self.g.nodes:
+                if node not in user_pair_nodes:
+                    try:
+                        each_degree_nodes[self.g.degree[node]].append(node)
+                    except:
+                        each_degree_nodes[self.g.degree[node]]= [node]
+                    degrees.append(self.g.degree[node])
+            degrees.sort(reverse=True)
+            for degree in degrees:
+                nodes = each_degree_nodes[degree]
+                for n in nodes:
+                    if n not in candidate_nodes:
+                        candidate_nodes.append(n)
+            while(len(self.storage_nodes)<number_of_storages and len(candidate_nodes)>0 ):    
+                    storage1 = candidate_nodes[0]
+                    candidate_nodes.pop(0)
+                    if self.storage_pairs:
+                        for storage_node in self.storage_nodes:
+                            if ((storage1,storage_node) not in self.storage_pairs and (storage_node,storage1) not in self.storage_pairs) and storage1!=storage_node:
+                                self.storage_pairs.append((storage1,storage_node))
+                        if storage1 not in self.storage_nodes:
+                            self.storage_nodes.append(storage1)
+                    else:
+                        if len(candidate_nodes)>1:
+                            storage1 = candidate_nodes[0]
+                            storage2 = candidate_nodes[1]
+                            candidate_nodes.pop(0)
+                            if (storage1,storage2) not in self.storage_pairs and (storage2,storage1) not in self.storage_pairs:
+                                self.storage_pairs.append((storage1,storage2))
+                                self.storage_nodes.append(storage1)
+                                self.storage_nodes.append(storage2)
+            
+        else:
+            new_selected_storage_nodes = []
+            new_selected_storage_pairs = []
+            user_pair_nodes = set([])
+            for t,user_pairs in self.each_t_user_pairs.items():
+                for user_pair in user_pairs:
+                    user_pair_nodes.add(user_pair[0])
+                    user_pair_nodes.add(user_pair[1])
+            user_pair_nodes = list(user_pair_nodes)
+            permitted_nodes = []
+            for node in self.nodes:
+                if node not in user_pair_nodes and node not in self.storage_nodes:
+                    permitted_nodes.append(node)
+            #print("we have permitted node as ",permitted_nodes,len(self.storage_nodes),number_of_storages,len(user_pair_nodes),user_pair_nodes)
+            if len(permitted_nodes)+len(self.storage_nodes)<=number_of_storages:
+                for storage1 in permitted_nodes:
+                    for storage2 in permitted_nodes:
+                        if storage1 != storage2:
+                            if (storage1,storage2) not in self.storage_pairs and (storage2,storage1) not in self.storage_pairs:
+                                self.storage_pairs.append((storage1,storage2))
+                                self.storage_nodes.append(storage1)
+                                self.storage_nodes.append(storage2)
+
+            else:
+                while(len(self.storage_nodes)<number_of_storages and len(permitted_nodes)>0):
+                    storage1 = permitted_nodes[0]
+                    while(storage1 in self.storage_nodes):
+                        storage1 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
+                    #print("we selected new storage node %s"%(storage1))
+                    if self.storage_pairs:
+                        for storage_node in self.storage_nodes:
+                            if ((storage1,storage_node) not in self.storage_pairs and (storage_node,storage1) not in self.storage_pairs) and storage1!=storage_node:
+                                self.storage_pairs.append((storage1,storage_node))
+                        if storage1 not in self.storage_nodes:
+                            self.storage_nodes.append(storage1)
+                    else:
+                        storage1 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
+                        storage2 = storage1
+                        while(storage1==storage2):
+                            storage2 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
+                        #print("for round  we have new storage node %s"%(storage1))
                         if (storage1,storage2) not in self.storage_pairs and (storage2,storage1) not in self.storage_pairs:
                             self.storage_pairs.append((storage1,storage2))
                             self.storage_nodes.append(storage1)
                             self.storage_nodes.append(storage2)
-
-        else:
-            while(len(self.storage_nodes)<number_of_storages and len(permitted_nodes)>0):
-                storage1 = permitted_nodes[0]
-                while(storage1 in self.storage_nodes):
-                    storage1 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
-                #print("we selected new storage node %s"%(storage1))
-                if self.storage_pairs:
-                    for storage_node in self.storage_nodes:
-                        if ((storage1,storage_node) not in self.storage_pairs and (storage_node,storage1) not in self.storage_pairs) and storage1!=storage_node:
-                            self.storage_pairs.append((storage1,storage_node))
-                    if storage1 not in self.storage_nodes:
-                        self.storage_nodes.append(storage1)
-                else:
-                    storage1 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
-                    storage2 = storage1
-                    while(storage1==storage2):
-                        storage2 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
-                    #print("for round  we have new storage node %s"%(storage1))
-                    if (storage1,storage2) not in self.storage_pairs and (storage2,storage1) not in self.storage_pairs:
-                        self.storage_pairs.append((storage1,storage2))
-                        self.storage_nodes.append(storage1)
-                        self.storage_nodes.append(storage2)
-                    #print("this is our first storage pair",self.storage_pairs)
+                        #print("this is our first storage pair",self.storage_pairs)
     def reset_pair_paths(self):
         self.set_of_paths = {}
         self.each_user_pair_all_real_paths = {}
@@ -348,6 +554,7 @@ class Network:
         self.set_E=[]
         self.each_edge_capacity={}
         self.nodes = []
+        self.each_edge_fidelity = {}
         self.max_edge_capacity = 0
         self.g = nx.Graph()
         print('[*] Loading topology...', self.topology_file)
@@ -367,7 +574,10 @@ class Network:
                 self.nodes.append(int(d))
             
             self.set_E.append((int(s),int(d)))
-            random_capacity = random.randint(100, 400)
+            random_fidelity = random.uniform(0.94,0.97)
+            self.each_edge_fidelity[(int(s),int(d))] = round(random_fidelity,3)
+            self.each_edge_fidelity[(int(d),int(s))] = round(random_fidelity,3)
+            random_capacity = random.randint(100, 200)
             
             self.each_edge_capacity[(int(s),int(d))] = random_capacity
             if random_capacity>self.max_edge_capacity:
@@ -399,7 +609,7 @@ class Network:
         for line in f:
             line = line.strip()
             link = line.split('\t')
-            print(line,link)
+#             print(line,link)
             i, s, d, c = link
             if int(s) not in self.nodes:
                 self.nodes.append(int(s))
@@ -413,7 +623,7 @@ class Network:
                 random_capacity = 100
             else:
                 random_capacity = 10
-            print("for edge ",(int(s),int(d)),"capacity is ",random_capacity)
+#             print("for edge ",(int(s),int(d)),"capacity is ",random_capacity)
             self.each_edge_capacity[(int(s),int(d))] = random_capacity
             if random_capacity>self.max_edge_capacity:
                 self.max_edge_capacity  = random_capacity
@@ -470,11 +680,15 @@ class Network:
             return first_set_of_paths
         
     def set_each_path_basic_fidelity(self):
-        basic_fidelities = [0.7,0.8,0.9]
+#         print("self.each_edge_fidelity[edge]",self.each_edge_fidelity)
+        #basic_fidelities = [0.7,0.8,0.9]
         self.each_path_basic_fidelity = {}
-        for path in self.set_of_paths:
-            basic_fidelity = basic_fidelities[random.randint(0,len(basic_fidelities)-1)]
-            self.each_path_basic_fidelity[path]= basic_fidelity
+        for path,path_edges in self.set_of_paths.items():
+            #basic_fidelity = basic_fidelities[random.randint(0,len(basic_fidelities)-1)]
+            basic_fidelity = 1
+            for edge in path_edges:
+                basic_fidelity = basic_fidelity * self.each_edge_fidelity[edge]
+            self.each_path_basic_fidelity[path]= round(basic_fidelity,3)
     def check_path_include_sub_path2(self,k,sub_path_id,path_id):
         if path_id in self.each_request_virtual_paths_include_subpath[k][sub_path_id]:
             return True
@@ -510,34 +724,14 @@ class Network:
     #         virtual_paths
     def get_path_length(self,path):
         return self.each_path_legth[path]-1
-    def scale_network(self,each_edge_scaling):
-        
-        for edge in self.set_E:
-            self.each_edge_capacity[edge] = self.each_edge_capacity[edge]*each_edge_scaling
-            
-        
-    def generate_new_random_storage_nodes(self,storage_nodes,num_storage_nodes):
-        return []
-    
-    
-    def generate_each_pair_real_paths(self,user_request_pairs):
-        return []
-    def generate_each_pair_virtual_paths(self,user_request_pairs,storage_nodes):
-        return []
-    def get_set_of_paths(self):
-        return []
-        
-    def load_shortest_path(self,k):
-        return self.each_request_real_paths
-    def load_virtual_paths(self):
-        
-        return self.each_request_virtual_paths
+
+
 
     
     
 
 
-# In[ ]:
+# In[28]:
 
 
 
@@ -716,33 +910,52 @@ class Network:
 #     # This code is contributed by PranchalK
 
 
-# In[5]:
+# In[44]:
 
 
-def generate_random_topologies():
-    avg_degrees = []
-    avg_edges = []
-    for i in range(20):
-        degrees = []
-    #     graph = nx.erdos_renyi_graph(50, 0.05, seed=None, directed=False)
-        graph = nx.barabasi_albert_graph(50, 2)
-        set_of_E = set([])
-    #     file1 = open("data/random_erdos_renyi2_"+str(i)+".txt", "w")
-        file1 = open("data/random_barabasi_albert2_"+str(i)+".txt", "w")
-        file1.writelines("Link_index	Source	Destination	Capacity(kbps)"+"\n")
-        edge_counter = 0
-        for e in graph.edges:
-            #print(e)
-            file1.writelines(str(edge_counter)+"\t"+str(e[0])+"\t"+str(e[1])+"\t"+"1"+"\n")
-            edge_counter+=1
-            set_of_E.add(e)
-        #file1.close()
-        #print(len(list(set_of_E)))
-        avg_edges.append(len(list(set_of_E)))
-        for node in graph.nodes:
-            degrees.append(graph.degree[node])
-        avg_degrees.append(sum(degrees)/len(degrees))
-    print("avg degree %s and avg edges %s "%(sum(avg_degrees)/len(avg_degrees),sum(avg_edges)/len(avg_edges)))
+def generate_random_topologies(topology_sizes):
+    not_connected_topologies = []
+    for topology_size in topology_sizes:
+        avg_degrees = []
+        all_diameters = []
+        avg_edges = []
+        topology_indx = 0
+        added_connected_topologies = []
+        while(len(added_connected_topologies)<5):
+            degrees = []
+            graph = nx.erdos_renyi_graph(topology_size, 0.1, seed=None, directed=False)
+#             graph = nx.barabasi_albert_graph(topology_size, 2)
+            set_of_E = set([])
+        #     file1 = open("data/random_erdos_renyi2_"+str(i)+".txt", "w")
+            try:
+                all_diameters.append(nx.diameter(graph))
+                added_connected_topologies.append(topology_indx)
+                file1 = open("data/size_"+str(topology_size)+"_random_barabasi_albert_"+str(topology_indx)+".txt", "w")
+                file1.writelines("Link_index	Source	Destination	Capacity(kbps)"+"\n")
+                edge_counter = 0
+                for e in graph.edges:
+                    #print(e)
+                    file1.writelines(str(edge_counter)+"\t"+str(e[0])+"\t"+str(e[1])+"\t"+"1"+"\n")
+                    edge_counter+=1
+                    set_of_E.add(e)
+                #file1.close()
+                #print(len(list(set_of_E)))
+                avg_edges.append(len(list(set_of_E)))
+                try:
+                    all_diameters.append(nx.diameter(graph))
+                except:
+                    not_connected_topologies.append(str(topology_size)+","+str(topology_indx))
+                for node in graph.nodes:
+                    degrees.append(graph.degree[node])
+                avg_degrees.append(sum(degrees)/len(degrees))
+            except:
+                pass
+            topology_indx+=1
+        print("avg degree %s and avg edges %s "%(sum(avg_degrees)/len(avg_degrees),sum(avg_edges)/len(avg_edges)))
+        print("not_connected_topologies",not_connected_topologies)
+# topology_sizes = [40,60,70,80,90,100,120,140,160]
+# topology_sizes = [180,200,220]
+# generate_random_topologies(topology_sizes)
 
 
 # In[18]:
@@ -777,10 +990,26 @@ def generate_random_topologies():
 
 
 
-# In[ ]:
+# In[7]:
 
 
-
+# f = open("data/IBM", 'r')
+# header = f.readline()
+# #f.readline()
+# #         self.link_capacities = np.empty((self.num_links))
+# #         self.link_weights = np.empty((self.num_links))
+# for line in f:
+#     line = line.strip()
+#     link = line.split('\t')
+#     print(line,link)
+#     i, s, d, c = link
+#     if int(s) not in nodes:
+#         nodes.append(int(s))
+#     if int(d) not in nodes:
+#         nodes.append(int(d))
+#     print(s,d)
+#     set_E.append((int(s),int(d)))
+    
 
 
 # In[ ]:
@@ -878,50 +1107,63 @@ def generate_random_topologies():
 
 
 
-# In[8]:
+# In[32]:
 
 
-def get_topologies_properties():
-    import networkx as nx
-    list_of_topologies = []
+def get_topologies_properties(topology_sizes):
+    for topology_size in topology_sizes:
+        try:
+            import networkx as nx
+            list_of_topologies = []
 
-    # list_of_topologies = ["data/ATT_topology_file",'data/abilene','data/Surfnet']
-    for i in range(10):
-    #     list_of_topologies.append("data/random_erdos_renyi_"+str(i)+".txt")
-        list_of_topologies.append("data/random_barabasi_albert_"+str(i)+".txt")
-    all_degrees=[]
-    all_edges=[]
-    all_diameters=[]
-    for top in list_of_topologies:
-        graph = nx.Graph()
-        set_of_E = set([])
-        f = open(top, 'r')
-        header = f.readline()
-        #f.readline()
-        #         self.link_capacities = np.empty((self.num_links))
-        #         self.link_weights = np.empty((self.num_links))
-        for line in f:
-            line = line.strip()
-            link = line.split('\t')
+    #         list_of_topologies = ["data/ATT_topology_file",'data/abilene','data/Surfnet',"data/IBM"]
+            for i in range(5):
+    #             list_of_topologies.append("data/random_erdos_renyi2_"+str(i)+".txt")
+    #             list_of_topologies.append("data/random_barabasi_albert2_"+str(i)+".txt")
+    #             list_of_topologies.append("data/random_erdos_renyi2_"+str(i)+".txt")
+#                 list_of_topologies.append("data/random_barabasi_albert2_"+str(i)+".txt")
+                list_of_topologies.append("data/size_"+str(topology_size)+"_random_barabasi_albert_"+str(i)+".txt")
+            all_degrees=[]
+            all_edges=[]
+            all_diameters=[]
+            for top in list_of_topologies:
+                print("for topology",top)
+                graph = nx.Graph()
+                set_of_E = set([])
+                f = open(top, 'r')
+                header = f.readline()
+                #f.readline()
+                #         self.link_capacities = np.empty((self.num_links))
+                #         self.link_weights = np.empty((self.num_links))
+                for line in f:
+                    line = line.strip()
+                    link = line.split('\t')
 
-            i, s, d, c = link
-            graph.add_edge(s,d,weight=1)
-            set_of_E.add((s,d))
+                    i, s, d, c = link
+                    graph.add_edge(s,d,weight=1)
+                    set_of_E.add((s,d))
 
-        degrees = []
-        for node in graph.nodes:
-            degrees.append(graph.degree[node])
-        print("for topology %s we have #nodes %s edges %s degree %s diameter %s"%
-              (top,len(graph.nodes),len(list(set_of_E)),sum(degrees)/len(degrees),nx.diameter(graph)))
-        all_degrees.append(sum(degrees)/len(degrees))
-        all_edges.append(len(list(set_of_E)))
-        all_diameters.append(nx.diameter(graph))
-    print("avg edges %s avg degree %s avg diameter %s "%
-          (sum(all_edges)/len(all_edges),sum(all_degrees)/len(all_degrees),sum(all_diameters)/len(all_diameters)))
+                degrees = []
+                for node in graph.nodes:
+                    degrees.append(graph.degree[node])
+                print("for topology %s we have #nodes %s edges %s degree %s diameter %s"%
+                      (top,len(graph.nodes),len(list(set_of_E)),sum(degrees)/len(degrees),nx.diameter(graph)))
+                all_degrees.append(sum(degrees)/len(degrees))
+                all_edges.append(len(list(set_of_E)))
+                all_diameters.append(nx.diameter(graph))
+            print("avg edges %s avg degree %s avg diameter %s "%
+                  (sum(all_edges)/len(all_edges),sum(all_degrees)/len(all_degrees),sum(all_diameters)/len(all_diameters)))
 
-    #     print("degree is ",sum(degrees)/len(degrees))
-    #     print("edges is ",len(list(set_of_E)))
-    #     print("nodes is ",len(graph.nodes))
+            #     print("degree is ",sum(degrees)/len(degrees))
+            #     print("edges is ",len(list(set_of_E)))
+            #     print("nodes is ",len(graph.nodes))
+        except ValueError:
+            print(ValueError)
+            pass
+        
+# topology_sizes = [40,60,70,80,90,100,120,140,160]
+# get_topologies_properties(topology_sizes)
+#2,4,6,9,12,13,15,16,17,18
 
 
 # In[ ]:

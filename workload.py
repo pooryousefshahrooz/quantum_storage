@@ -156,7 +156,7 @@ class Work_load(object):
                         if (i,j) not in printed_pairs and (j,i) not in printed_pairs:
                             printed_pairs.append((i,j))
                             printed_pairs.append((j,i))
-                            print("num_of_pairs %s time %s traffic from %s to %s is %s and user_indx %s"%(num_of_pairs, time,i,j,traffic[i][j],user_indx))
+#                             print("num_of_pairs %s time %s traffic from %s to %s is %s and user_indx %s"%(num_of_pairs, time,i,j,traffic[i][j],user_indx))
                             request = each_t_user_pairs[time][user_indx]
                             user_indx+=1
                             demand = max(1,traffic[i][j])
@@ -233,7 +233,11 @@ class Work_load(object):
 #                                 pass
 #                         except:
 #                             self.each_t_real_requests[time] = user_pairs
-                
+    def get_each_t_whole_demands(self,time,user_pairs):
+        sum_demands = 0
+        for user_pair in user_pairs:
+            sum_demands+= self.each_t_each_request_demand[time][user_pair]
+        return sum_demands
     def check_demands_per_each_time(self,each_t_user_pairs):
         for time in self.T:
             for user_pair in each_t_user_pairs[time]:
@@ -254,6 +258,7 @@ class Work_load(object):
                     self.each_t_each_request_demand[time] = {}
                     self.each_t_each_request_demand[time][pair] = 0
     def set_threshold_fidelity_for_request_pairs(self,each_t_user_pairs,storage_pairs,each_user_request_fidelity_threshold):
+        higest_threshold = []
         for time,pairs in each_t_user_pairs.items():
             for pair in pairs:
                 try:
@@ -261,13 +266,18 @@ class Work_load(object):
                 except:
                     self.each_request_threshold[pair] = {}
                     self.each_request_threshold[pair][time] = each_user_request_fidelity_threshold[pair] 
+                higest_threshold.append(each_user_request_fidelity_threshold[pair])
         for pair in storage_pairs:
             for time in self.T:
                 try:
-                    self.each_request_threshold[pair][time] = 0.1
+                    self.each_request_threshold[pair][time] = 0.6
                 except:
                     self.each_request_threshold[pair]= {}
-                    self.each_request_threshold[pair][time] = 0.1
+                    self.each_request_threshold[pair][time] = 0.6
+                    
+#         print("higest_threshold",max(higest_threshold))
+#         import time
+#         time.sleep(5)
     def get_each_request_threshold(self,k,t):
         return self.each_request_threshold[k][t]
     def generate_workload_circle(self,alpha,T,request_pairs):

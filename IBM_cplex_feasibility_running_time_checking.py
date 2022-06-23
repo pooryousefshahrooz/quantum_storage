@@ -30,13 +30,7 @@ import time
 # In[ ]:
 
 
-
-
-
-# In[1]:
-
-
-def CPLEX_maximizing_entanglement_generation(network,work_load,life_time,iteration):
+def CPLEX_resource_cinsumption_minimization(network,work_load,life_time,iteration):
     
     import docplex.mp.model as cpx
     opt_model = cpx.Model(name="Storage problem model"+str(iteration))
@@ -55,55 +49,35 @@ def CPLEX_maximizing_entanglement_generation(network,work_load,life_time,iterati
 #                               name="s_{0}_{1}_{2}".format(t,k,p))  for t in work_load.T 
 #                for k in work_load.each_t_requests[t] 
 #                for p in network.each_request_real_paths[k]}
-
-    all_user_pairs_across_time_slots = []
-    for t in work_load.T:
-        for k in work_load.each_t_requests[t]:
-            if k not in all_user_pairs_across_time_slots:
-                all_user_pairs_across_time_slots.append(k)
-            
     w_vars  = {(t,k,p): opt_model.continuous_var(lb=0, ub= network.max_edge_capacity,
                               name="w_{0}_{1}_{2}".format(t,k,p))  for t in work_load.T 
-               for k in all_user_pairs_across_time_slots 
+               for k in work_load.each_t_requests[t] 
                for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]}
-    
-#     for t in work_load.T:
-#         for k in all_user_pairs_across_time_slots:
-#             for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]:
-#                 print("this is what we set",w_vars[t,k,p])
 
     u_vars  = {(t,j,p): opt_model.continuous_var(lb=0, ub= network.max_edge_capacity,
-                              name="u_{0}_{1}_{2}".format(t,j,p))  for t in work_load.T 
-               for j in network.storage_pairs for p in network.each_request_real_paths[j]}   
-#     if life_time ==1000:
-#         #inventory evolution constraint
-#         for t in work_load.T[1:]:
-#             for j in network.storage_pairs:
-#                 for p_s in network.each_request_real_paths[j]:
-#                     for k in work_load.each_t_requests[t]:
-#                         if k!=j:
-#                             print("this is the list of path ids",t,k,p_s)
-#                             for p in network.each_request_virtual_paths[k]:
-#                                 if p not in network.each_request_virtual_paths[k]:
-#                                     print("BIG ERROR AGAIN!")
-#                                 else:
-#                                     print("IT SHOULD BE OK!")
-#                                 print(work_load.each_t_requests[t])
-#                                 print("virtual paths ",network.each_request_virtual_paths[k])
-#                                 print("real paths",network.each_request_real_paths[k])
-#                                 #print('w_vars',w_vars)
-#                                 if network.check_path_include_sub_path2(k,p_s,p):
-#                                     print("we returned TRUE and ")
-#                                     print(w_vars[t-1,k,p])
+                                  name="u_{0}_{1}_{2}".format(t,j,p))  for t in work_load.T 
+                   for j in network.storage_pairs for p in network.each_request_real_paths[j]}   
+
     if life_time ==1000:
         #inventory evolution constraint
         for t in work_load.T[1:]:
             for j in network.storage_pairs:
                 for p_s in network.each_request_real_paths[j]:
+                    
+                    
+#                     print("2for time %s and storage pair %s and real sub path %s"%(t,j,p_s))
+#                     for k in work_load.each_t_requests[t]:
+#                         print("2this is the request ",k)
+#                         if k!=j:
+#                             print("2which was not equal to storage pair")
+#                             for p in network.each_request_virtual_paths_include_subpath[k][p_s]:
+#                                 print("2this path %s include the sub path %s"%(p,p_s))
+
+                    
+                    
                     opt_model.add_constraint(u_vars[t,j,p_s] == u_vars[t-1,j,p_s]-
-                    opt_model.sum(w_vars[t-1,k,p]
-                    for k in work_load.each_t_requests[t] if k!=j for p in network.each_request_virtual_paths[k] 
-                    if network.check_path_include_sub_path2(k,p_s,p))
+                    opt_model.sum(w_vars[t-1,k,p] *network.get_required_purification_EPR_pairs(p,work_load.get_each_request_threshold(k,t))
+                    for k in work_load.each_t_requests[t] if k!=j for p in network.each_request_virtual_paths_include_subpath[k][p_s])
                     +opt_model.sum(w_vars[t-1,j,p_s])
                                          , ctname="inventory_evolution_{0}_{1}".format(t,j,p_s))
     else:
@@ -112,34 +86,11 @@ def CPLEX_maximizing_entanglement_generation(network,work_load,life_time,iterati
             for j in network.storage_pairs:
                 for p_s in network.each_request_real_paths[j]:
                     opt_model.add_constraint(u_vars[t,j,p_s] == -
-                    opt_model.sum(w_vars[t-1,k,p] 
-                    for k in work_load.each_t_requests[t] if k!=j for p in network.each_request_virtual_paths[k] 
-                    if network.check_path_include_sub_path2(k,p_s,p))+
-                    opt_model.sum(w_vars[t-1,j,p_s])
+                    opt_model.sum(w_vars[t-1,k,p] *network.get_required_purification_EPR_pairs(p,work_load.get_each_request_threshold(k,t))
+                    for k in work_load.each_t_requests[t] if k!=j for p in network.each_request_virtual_paths_include_subpath[k][p_s] 
+                    )
+                    + opt_model.sum(w_vars[t-1,j,p_s])
                                          , ctname="inventory_evolution_{0}_{1}".format(t,j,p_s))
-                    
-                    
-    
-#                     print("done!!!")
-                   
-#                     opt_model.add_constraint(u_vars[t,j,p_s] == u_vars[t-1,j,p_s]-
-#                     opt_model.sum(w_vars[t-1,k,p]
-#                     for k in work_load.each_t_requests[t] if k!=j 
-#                     for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]
-#                     if network.check_if_request_uses_this_sub_path(k,p,p_s))
-#                     +opt_model.sum(w_vars[t-1,j,p_s])
-#                                          , ctname="inventory_evolution_{0}_{1}".format(t,j,p_s))
-#     else:
-#         #inventory evolution constraint
-#         for t in work_load.T[1:]:
-#             for j in network.storage_pairs:
-#                 for p_s in network.each_request_real_paths[j]:
-#                     opt_model.add_constraint(u_vars[t,j,p_s] == -
-#                     opt_model.sum(w_vars[t-1,k,p] 
-#                     for k in work_load.each_t_requests[t] if k!=j for p in network.each_request_virtual_paths_include_subpath[k][p_s] 
-#                     )
-#                     + opt_model.sum(w_vars[t-1,j,p_s])
-#                                          , ctname="inventory_evolution_{0}_{1}".format(t,j,p_s))
 
     # serving from inventory constraint
     for t in work_load.T[1:]:
@@ -154,23 +105,25 @@ def CPLEX_maximizing_entanglement_generation(network,work_load,life_time,iterati
 #                         for p in network.each_request_virtual_paths_include_subpath[k][p_s]:
 #                             print("this path %s include the sub path %s"%(p,p_s))
                             
-                opt_model.add_constraint(opt_model.sum(w_vars[t,k,p]
+                opt_model.add_constraint(opt_model.sum(w_vars[t,k,p]*network.get_required_purification_EPR_pairs(p,work_load.get_each_request_threshold(k,t))
                 for k in work_load.each_t_requests[t] if k!=j for p in network.each_request_virtual_paths_include_subpath[k][p_s] if k in list(network.each_request_virtual_paths_include_subpath.keys()))<=u_vars[t,j,p_s]
-                                     , ctname="inventory_serving_{0}_{1}_{2}".format(t,j,p_s)) 
-
+                                     , ctname="inventory_serving_{0}_{1}_{2}".format(t,j,p_s))  
+ 
+     
     # Demand constriant
-#     for t in work_load.T[1:]:
-#         for k in  work_load.each_t_requests[t]:
-#             opt_model.add_constraint(opt_model.sum(w_vars[t,k,p]
-#             for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]) >= 
-#                     work_load.each_t_each_request_demand[t][k], ctname="constraint_{0}_{1}".format(t,k))
+    for t in work_load.T[1:]:
+        for k in  work_load.each_t_requests[t]:
+            opt_model.add_constraint(opt_model.sum(w_vars[t,k,p]
+            for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]) >= 
+                    work_load.each_t_each_request_demand[t][k], ctname="constraint_{0}_{1}".format(t,k))
     
     #Edge constraint
     for t in work_load.T:
         for edge in network.set_E:
             opt_model.add_constraint(
-                opt_model.sum(w_vars[t,k,p] for k in work_load.each_t_requests[t]
-                for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k] if network.check_path_include_edge(edge,p)) 
+                opt_model.sum(w_vars[t,k,p]*network.get_required_purification_EPR_pairs(p,work_load.get_each_request_threshold(k,t)) for k in work_load.each_t_requests[t]
+                for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k] if network.check_path_include_edge(edge,p))
+                                     
                  <= network.each_edge_capacity[edge], ctname="edge_capacity_{0}_{1}".format(t,edge))
      
     # storage servers capacity constraint
@@ -192,6 +145,7 @@ def CPLEX_maximizing_entanglement_generation(network,work_load,life_time,iterati
         opt_model.add_constraint(opt_model.sum(w_vars[t,k,p]
                 for k in work_load.each_t_requests[t] for p in network.each_request_real_paths[k] 
                 )<=0, ctname="storing_in_inventory_{0}".format(t))   
+    
 
     # constraint for inventory is zero at time zero 
     for t in [0]:
@@ -199,23 +153,14 @@ def CPLEX_maximizing_entanglement_generation(network,work_load,life_time,iterati
              for p_s in network.each_request_real_paths[j]:
                     opt_model.add_constraint(u_vars[t,j,p_s] <=0, ctname="storage_capacity_constraint_{0}_{1}_{2}".format(t,j,p_s))
     
-    """important constraint for preventing serving requests out of there time slots"""
-    for k in all_user_pairs_across_time_slots:
-        for t in work_load.T:
-            if k not in work_load.each_t_requests[t]:
-                opt_model.add_constraint(
-                opt_model.sum(w_vars[t,k,p] 
-                for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k] 
-                ) 
-                 <= 0, ctname="serving_at_time_slot_constraint_{0}_{1}".format(t,k))    
     """defining an objective, which is a linear expression"""
 #     objective = opt_model.sum(1/len(work_load.T[1:])*1/len(work_load.each_t_real_requests[t])*1/work_load.each_t_each_request_demand[t][k]
 #                               *(w_vars[t,k,p] * network.get_path_length(p)) for t in work_load.T[1:]
 #                               for k in work_load.each_t_real_requests[t] 
 #                               for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]
 #                               )
-    objective = opt_model.sum(1/len(work_load.T[1:])
-                              *(w_vars[t,k,p]) for t in work_load.T[1:]
+    objective = opt_model.sum(1/len(work_load.T[1:])*1/len(work_load.each_t_real_requests[t])*1/work_load.each_t_each_request_demand[t][k]
+                              *(w_vars[t,k,p] * network.get_path_length(p)) for t in work_load.T[1:]
                               for k in work_load.each_t_real_requests[t] 
                               for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]
                               )
@@ -227,7 +172,7 @@ def CPLEX_maximizing_entanglement_generation(network,work_load,life_time,iterati
 #                                 )
     
     # for maximization
-    opt_model.maximize(objective)
+    opt_model.minimize(objective)
     
 #     opt_model.solve()
     opt_model.print_information()
@@ -256,38 +201,31 @@ def CPLEX_maximizing_entanglement_generation(network,work_load,life_time,iterati
 #                 print("for request %s path %s %s we have lenght %s "%(k,path,network.set_of_paths[path],network.get_path_length(path)))
 #     import pdb
     
-#     print('docplex.mp.solution',opt_model.solution)
-    import pdb
-#     if network.storage_pairs:
-#         pdb.set_trace()
+    print('docplex.mp.solution',opt_model.solution)
     objective_value = 0
     try:
-        objective_value =opt_model.solution.get_objective_value()
-    except:
-        pass
-    each_inventory_per_time_usage = {}
-
+        if opt_model.solution:
+            objective_value =opt_model.solution.get_objective_value()
+    except ValueError:
+        print(ValueError)
+        #pass
+    #pdb.set_trace()
     if objective_value>0:
-        for t in work_load.T[1:]:
-            for j in network.storage_pairs:
-                for p in network.each_request_real_paths[j]:
-                    try:
-                        each_inventory_per_time_usage[j][t]=u_vars[t,j,p].solution_value
-                    except:
-                        try:
-                            each_inventory_per_time_usage[j][t]=u_vars[t,j,p].solution_value
-                        except:
-                            each_inventory_per_time_usage[j] = {}
-                            each_inventory_per_time_usage[j][t]=u_vars[t,j,p].solution_value
-#                     print("values for storage",u_vars[t,j,p].solution_value)
         #time.sleep(4)
-    
+        
+#         for t in work_load.T[1:]:
+#             for j in network.storage_pairs:
+#                 for p in network.each_request_real_paths[j]:
+#                     print("for time %s storage pair %s on path %s we have %s",t,j,p,u_vars[t,j,p].solution_value)
+        import pdb
+        #pdb.set_trace()
         #print(ValueError)
     opt_model.clear()
     #if objective_value<2:
         #print(objective_value,network.storage_pairs,network.user_pairs)
-        #pdb.set_trace()
-    return objective_value,each_inventory_per_time_usage
+        
+    #
+    return objective_value
 #     except ValueError:
 #         print(ValueError)
 
@@ -301,62 +239,60 @@ def CPLEX_maximizing_entanglement_generation(network,work_load,life_time,iterati
 # In[ ]:
 
 
-def EGR_for_dynamic_population(each_network_topology_file,spike_mean,num_spikes,experiment_repeat,storage_node_selection_scheme):
-    for topology,file_path in each_network_topology_file.items():
-        results_file_path = 'results/results_dynamic_population.csv'
-        inventory_utilization_results_file_path = 'results/inventory_utilization_dynamic_population.csv'
-        # print('network.set_E',network.set_E)
-        # print('network.nodes',network.nodes)
-        # print('network.user_pairs',network.user_pairs)
-        # print('work_load.request_pairs',work_load.request_pairs)
-        # print('work_load.each_t_requests',work_load.each_t_requests)
-        # print('work_load.each_t_real_requests',work_load.each_t_real_requests)
-        # print('work_load.each_t_each_request_demand',work_load.each_t_each_request_demand)
-        # print('work_load.each_request_threshold',work_load.each_request_threshold)
+def minimizing_resource_consumption(each_network_topology_file,each_topology_size,spike_mean,num_spikes,experiment_repeat,storage_node_selection_scheme):
+    for network_topology,file_path in each_network_topology_file.items():
+        results_file_path = 'results/results_feasibility_checking_delay.csv'
+        
+        topology_size = each_topology_size[network_topology]
         import pdb
         each_storage_each_path_number_value = {}
         # pdb.set_trace()
-        distance_between_users = 3
+        distance_between_users = 2
         number_of_user_pairs =3
-        number_of_time_slots = 10
+        number_of_time_slots = 15
         for i in range(experiment_repeat):
-        #     network = Network('abilene')
+    #         network = Network('abilene')
             network = Network(file_path)
-            network.get_user_pairs_over_dynamicly_chaning_population(number_of_user_pairs,distance_between_users,number_of_time_slots)
-
+            network.get_user_pairs(number_of_user_pairs,distance_between_users,number_of_time_slots)
+            network.set_user_pair_fidelity_threshold()
             work_load = Work_load(number_of_time_slots,"time_demands_file.csv")
-
+            """we set the demands for each user pair"""
+            work_load.set_each_user_pair_demands(number_of_time_slots,network.each_t_user_pairs,spike_mean,num_spikes)
+            """we set at least one demand for each time to avoid divided by zero error"""
+            work_load.check_demands_per_each_time(network.each_t_user_pairs)                                      
             objective_values = []
             selected_storage_nodes = []
             selected_storage_pairs = []
 
             #nx.draw(network.g,with_labels=True)
             # plt.show()
-            network.reset_pair_paths()
-            pairs = []
-            print("network.each_t_user_pairs",network.each_t_user_pairs)
-            for t,user_pairs in network.each_t_user_pairs.items():            
-                for user_pair in user_pairs:
-                    if user_pair not in pairs:
-                        pairs.append(user_pair)
-            network.get_each_user_pair_real_paths(pairs)
-
-            import pdb
-            #pdb.set_trace()
-
-
-            """select and add new storage pairs"""
-
-            for number_of_storages in range(7):
-                print("for number of storages round  ",number_of_storages)
-                network.get_new_storage_pairs(number_of_storages,storage_node_selection_scheme)
-                work_load.reset_variables()
-                work_load.set_each_time_requests(network.each_t_user_pairs,network.storage_pairs)
-                work_load.set_each_time_real_requests(network.each_t_user_pairs)
-                """with new storage pairs, we will check the solution for each number of paths(real and virtual)"""
-                for num_paths in range(3,4):
-
+            for num_paths in [4]:
+                
+                for number_of_storages in range(5,6):
+                    network.each_request_real_paths = {}
+                    network.reset_pair_paths()
+                    """with new storage pairs, we will check the solution for each number of paths(real and virtual)"""
+                    work_load.reset_variables()
+                    pairs = []
+                    #print("network.each_t_user_pairs",network.each_t_user_pairs)
+                    for t,user_pairs in network.each_t_user_pairs.items():            
+                        for user_pair in user_pairs:
+                            if user_pair not in pairs:
+                                pairs.append(user_pair)
+                    network.get_each_user_pair_real_paths(pairs)
+                    import pdb
+                    #pdb.set_trace()
                     path_counter_id = 0
+                    #print("for number of storages round  ",number_of_storages)
+                    """select and add new storage pairs"""
+                    network.get_new_storage_pairs(number_of_storages,storage_node_selection_scheme)
+                    print("these are our storage pairs",network.storage_pairs)
+#                     print("for # paths %s and # of storage nodes %s these are our storage pairs %s"%(num_paths,number_of_storages,network.storage_pairs))
+                    #time.sleep(3)
+                    #break
+                    work_load.set_each_time_requests(network.each_t_user_pairs,network.storage_pairs)
+                    work_load.set_each_time_real_requests(network.each_t_user_pairs)
+
                     #print("network.storage_pairs",network.storage_pairs)
                     #import pdb
                     #pdb.set_trace()
@@ -368,7 +304,7 @@ def EGR_for_dynamic_population(each_network_topology_file,spike_mean,num_spikes,
 
                     print("for iteration %s storage %s and path number %s"%(i,number_of_storages,num_paths))
                     for storage_pair in network.storage_pairs:
-                        #print("going to get real paths between storage pair ",storage_pair)
+#                         print("going to get real paths between storage pair ",storage_pair)
                         paths = network.get_real_path(storage_pair,num_paths)
                         #print("got paths",paths)
                         for path in paths:
@@ -383,9 +319,20 @@ def EGR_for_dynamic_population(each_network_topology_file,spike_mean,num_spikes,
                                 network.each_storage_real_paths[storage_pair].append(path)
                             except:
                                 network.each_storage_real_paths[storage_pair]=[path]
-                            #print("*** we used path_counter_id",path_counter_id)
+#                             print("*** we added path %s for storage %s and used path_counter_id %s"%(path,storage_pair,path_counter_id))
                             path_counter_id+=1
-
+#                     for path,path_ID in network.each_path_path_id.items():
+#                         print("each path %s has path ID %s "%(path,path_ID))
+                    for storage_pair,paths in network.each_storage_real_paths.items():
+#                         print("storage pair %s has real paths %s "%(storage_pair,paths))
+                        for p in paths:
+                            
+                            if tuple(p) not in list(network.each_path_path_id.keys()):
+#                                 print("there is an error for storage pair %s and its path %s"%(storage_pair,p))
+                                import pdb
+                                pdb.set_trace()
+                    
+                    
                     across_all_time_slots_pairs = []
                     for t,user_pairs in network.each_t_user_pairs.items():
                         for user_pair in user_pairs:
@@ -412,13 +359,14 @@ def EGR_for_dynamic_population(each_network_topology_file,spike_mean,num_spikes,
                         #pdb.set_trace()
                         for storage_pair in network.storage_pairs:
                             """add one new path to the previous paths"""
+
                             for real_sub_path in network.each_storage_real_paths[storage_pair]:
                                 #for edge in real_sub_path:
                                     #network.g.remove_edge(edge[0],edge[1])
                                 #network.g.add_edge(storage_pair[0],storage_pair[1],weight=0)
 #                                 print("we are going to add a virtual path for user pair %s that includes %s"%(user_pair,real_sub_path))
                                 paths = network.get_paths_to_connect_users_to_storage(user_pair,real_sub_path,num_paths)
-#                                 print("network.each_path_path_id",network.each_path_path_id)
+                                
                                 this_sub_path_id = network.each_path_path_id[tuple(real_sub_path)]
                                 #print(paths)
 
@@ -435,6 +383,9 @@ def EGR_for_dynamic_population(each_network_topology_file,spike_mean,num_spikes,
                                         except:
                                             network.each_request_virtual_paths_include_subpath[user_pair]={}
                                             network.each_request_virtual_paths_include_subpath[user_pair][this_sub_path_id]=[path_counter_id]
+#                                     if number_of_storages>0:
+#                                         print("paths_include_subpath: we added path id %s  for sub path %s for user pairs %s storage pair %s"%(path_counter_id,this_sub_path_id,user_pair,storage_pair))
+                                        #time.sleep(5)
                                     if this_sub_path_id not in all_sub_paths:
                                         all_sub_paths.append(this_sub_path_id)
                                     path = network.remove_storage_pair_real_path_from_path(real_sub_path,path)
@@ -444,20 +395,28 @@ def EGR_for_dynamic_population(each_network_topology_file,spike_mean,num_spikes,
                                         network.each_request_virtual_paths[user_pair].append(path_counter_id)
                                     except:
                                         network.each_request_virtual_paths[user_pair]=[path_counter_id]
-                                    #print("*** we used path_counter_id",path_counter_id)
+#                                     if number_of_storages>0:
+#                                         print("***Virtual paths:  we added virtual path %s and subpath was %s to user pair %s storage pair %s %s"%(path_counter_id,this_sub_path_id,user_pair,storage_pair,"\n"))
+                                        #time.sleep(1)
                                     path_counter_id+=1
 
 
                                 for pair in network.storage_pairs:
                                     network.each_request_virtual_paths[pair]=[]
 
-                                #print("for user pair %s to storage pair %s we got real paths and it is:"%(user_pair,storage_pair))
-
+                            #print("for user pair %s to storage pair %s we got real paths and it is:"%(user_pair,storage_pair))
+#                         print("for user pair %s we added the virtual path to all storage pairs")
+#                         print("network.each_request_virtual_paths",network.each_request_virtual_paths)
+#                         print("network.set_of_paths",network.set_of_paths)
+#                         import pdb
+                        
                     if number_of_storages==0:
                         for t,pairs in network.each_t_user_pairs.items():
                             for pair in pairs:
                                 network.each_request_virtual_paths[pair]=[]
-
+                                for j in network.storage_pairs:
+                                    for sub_path_id in all_sub_paths:
+                                        network.each_request_virtual_paths_include_subpath[pair][sub_path_id]={}
                     for j in network.storage_pairs:
                         for sub_path_id in all_sub_paths:
                             try:
@@ -474,7 +433,41 @@ def EGR_for_dynamic_population(each_network_topology_file,spike_mean,num_spikes,
                                     network.each_request_virtual_paths_include_subpath[k]= {}
                             except:
                                 network.each_request_virtual_paths_include_subpath[k]= {}
+                                
+#                     for t in work_load.T:
+#                         for k in work_load.each_t_requests[t]:
+#                             for p in network.each_request_real_paths[k]+network.each_request_real_paths[k]:
+#                                 print("at time %s for request %s storage %s we have path %s"%(t,k,number_of_storages,p))
 
+                    for t in work_load.T:
+                            for j in network.storage_pairs:
+
+                                for p_s in network.each_request_real_paths[j]:
+                                    #print("for time %s and storage pair %s and real sub path %s"%(t,j,p_s))
+                                    for k in work_load.each_t_requests[t]:
+                                        #print("this is the request ",k)
+                                        if k!=j:
+                                            #print("which was not equal to storage pair")
+                                            for p in network.each_request_virtual_paths_include_subpath[k][p_s]:
+                                                if p not in network.each_request_virtual_paths[k]:
+                                                    import pdb
+                                                    print("ERROR storages %s time %s request %s has a path %s for subpaths but it is not in his virtual paths %s"%(number_of_storages,t,k,p,p_s))
+                                                    #print(network.each_request_real_paths[k])
+                                                    print("virtual paths including subpath list ",network.each_request_virtual_paths_include_subpath[k][p_s])
+                                                    print("virtual paths",network.each_request_virtual_paths[k])
+                                                    pdb.set_trace()
+                                                #print("time %s request %s has path %s including sub path %s"%(t,k,p,p_s))
+
+                        
+#                                           
+#                     print("network.each_request_real_paths",network.each_request_real_paths)
+#                     print("network.each_request_virtual_paths",network.each_request_virtual_paths)
+#                     print("network.set_of_paths",network.set_of_paths)
+#                     print('network.each_request_real_paths',network.each_request_real_paths)
+#                     print('network.each_request_virtual_paths',network.each_request_virtual_paths)
+                    import pdb
+                   
+                    
                     """we set the capacity of each storage node"""
 
                     network.set_storage_capacity()
@@ -483,102 +476,83 @@ def EGR_for_dynamic_population(each_network_topology_file,spike_mean,num_spikes,
 
                     work_load.set_storage_pairs_as_user_pairs(network.storage_pairs)
 
-                    
+                    """we set the fidelity threshold of each new storage pair as a user request"""
+
+                    work_load.set_threshold_fidelity_for_request_pairs(network.each_t_user_pairs,network.storage_pairs,network.each_user_request_fidelity_threshold)
+
+                    """we set the required EPR pairs to achieve each request threshold fidelity"""
+                    network.set_required_EPR_pairs_for_path_fidelity_threshold()
 
 
-
+                  
                     """we print all variables to check the variables and values"""
 
             #         print("we ahve these parameters for network")
 
-            #         print('network.set_E',network.set_E)
-                    #print('network.each_edge_capacity',network.each_edge_capacity)
+#                     print('network.set_E',network.set_E)
+#                     print('network.each_edge_capacity',network.each_edge_capacity)
 
 
 
             #         print('network.each_path_basic_fidelity',network.each_path_basic_fidelity)
             #         print('network.oracle_for_target_fidelity',network.oracle_for_target_fidelity)
-            #         print('network.storage_pairs',network.storage_pairs)
+#                     print('network.storage_pairs',network.storage_pairs)
             #         print('network.storage_nodes',network.storage_nodes)
             #         print('network.each_storage_capacity',network.each_storage_capacity)
 
 
-            #         print("we now print workload parameters to check")
+#                     print("we now print workload parameters to check")
 
 #                     print('work_load.T',work_load.T)
 #                     print('work_load.num_requests',work_load.num_requests)
+#                     #print('work_load.request_pairs',work_load.request_pairs)
 #                     print('work_load.each_t_requests',work_load.each_t_requests)
 #                     print('work_load.each_t_real_requests',work_load.each_t_real_requests)
-            #         print('work_load.time_intervals',work_load.time_intervals)
-                    #print('work_load.each_t_each_request_demand',work_load.each_t_each_request_demand)
+                    
+#                     print('work_load.each_t_each_request_demand',work_load.each_t_each_request_demand)
             #         print('work_load.each_request_threshold',work_load.each_request_threshold)
             #         print('work_load.each_user_request_fidelity_threshold',work_load.each_user_request_fidelity_threshold)
-#                     print("*************************************************")
-#                     print("network.each_request_real_paths",network.each_request_real_paths)
-#                     print("network.each_request_virtual_paths",network.each_request_virtual_paths)
-#                     print("network.set_of_paths",network.set_of_paths)
-#                     for t in work_load.T[1:]:
-#                         for j in network.storage_pairs:
-#                             for p_s in network.each_request_real_paths[j]:
-#                                 for k in work_load.each_t_requests[t]:
-#                                     if k!=j:
-#                                         for p in network.each_request_virtual_paths_include_subpath[k][p_s]:
-#                                             if p not in network.each_request_virtual_paths[k]:
-#                                                 print("BIG ERROR!!!")
-#                                             else:
-#                                                 print("EVERY THINGS IS OK! :)")
-                                        #print("we check if at time %s for request %s to storage %s on sub path %s we have w varibale and we have paths %s"%(t,k,j,p_s,network.each_request_virtual_paths_include_subpath[k][p_s]))
-                                        #print()
-                                        #print('w_vars',w_vars)
-                                        #print(w_vars[t-1,k,p_s])
+
                     import pdb
-                    #if network.storage_pairs:
-                        
-                        #pdb.set_trace()
-                    life_time_set = [1000,2]
+                    #pdb.set_trace()
+                    """solve the optimization"""
+                    life_time_set = [1000]
                     for life_time in life_time_set:
-                        """solve the optimization"""        
                         try:
-                            objective_value=0
+                            objective_value=-1
+                            
+                            start_time_milliseconds = int(round(time.time() * 1000))
                             try:
-                                objective_value,each_inventory_per_time_usage = CPLEX_maximizing_entanglement_generation(network,work_load,life_time,i)
+
+                                objective_value = CPLEX_resource_cinsumption_minimization(network,work_load,life_time,i)
                             except ValueError:
                                 print(ValueError)
-                                pass
+                                #pass
+                            finishing_time_milliseconds = int(round(time.time() * 1000))
                             objective_values.append(objective_value)
-                            if 0<objective_value<distance_between_users-1:
-                                print(objective_value)
-#                                 for t,pairs in network.each_t_user_pairs.items():
-#                                     for k in pairs:
-#                                         for path in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]:
-#                                             print("k, path, swaps",k,path,network.get_path_length(path))
 
-#                                 print("user pairs",network.each_t_user_pairs)
-#                                 print('network.set_of_paths',network.set_of_paths)
-#                                 print('network.each_request_real_paths',network.each_request_real_paths)
-#                                 print('network.each_request_virtual_paths',network.each_request_virtual_paths)
-#                                 print("work_load.each_t_real_requests",work_load.each_t_real_requests)
-                                #time.sleep(4)
-                                import pdb
-                                #pdb.set_trace()
-                            print("the objective value for %s storage nodes and %s paths between each pair of nodes is %s"%(number_of_storages,num_paths,objective_value))
-
-#                             print(each_inventory_per_time_usage)
-                            #time.sleep(10)
-                            for storage_pair,t_saved_EPRs in each_inventory_per_time_usage.items():
-                                for t ,EPRs in t_saved_EPRs.items():
-                                    with open(inventory_utilization_results_file_path, 'a') as newFile:                                
-                                        newFileWriter = csv.writer(newFile)
-                                        newFileWriter.writerow([topology,number_of_storages,num_paths,i,life_time,storage_pair,t,EPRs,storage_node_selection_scheme]) 
-
+        #                     print("demand",work_load.each_t_each_request_demand)
+        #                     print("user pairs",network.each_t_user_pairs)
+        #                     print('network.set_of_paths',network.set_of_paths)
+        #                     print('network.each_request_real_paths',network.each_request_real_paths)
+        #                     print('network.each_request_virtual_paths',network.each_request_virtual_paths)
+        #                     print("work_load.each_t_real_requests",work_load.each_t_real_requests)
+        #                     time.sleep(4)
+        #                     import pdb
+        #                     
+                            print("life time %s the objective value for %s storage nodes and %s paths between each pair of nodes is %s"%(life_time,number_of_storages,num_paths,objective_value))
+                            #pdb.set_trace()
+                            #time.sleep(5)
+                            #if objective_value>=0:
                             with open(results_file_path, 'a') as newFile:                                
                                 newFileWriter = csv.writer(newFile)
-                                newFileWriter.writerow([topology,number_of_storages,num_paths,life_time,objective_value,i,storage_node_selection_scheme]) 
-                                
+                                newFileWriter.writerow([network_topology,number_of_storages,num_paths,life_time,objective_value,
+                                                        spike_mean,num_spikes,i,storage_node_selection_scheme,start_time_milliseconds,
+                                                        finishing_time_milliseconds,topology_size]) 
                         except ValueError:
                             #pass
                             print(ValueError)
-            print("until the %s th iteration we have %s"%(i,each_storage_each_path_number_value)) 
+#             print("until the %s th iteration we have %s"%(i,each_storage_each_path_number_value)) 
             #time.sleep(10)
         # work_load = Work_load()
         # network = Network('../data')
@@ -590,29 +564,79 @@ def EGR_for_dynamic_population(each_network_topology_file,spike_mean,num_spikes,
 # In[ ]:
 
 
-experiment_repeat =300
-spike_mean = 60
-num_spikes = 1
-storage_node_selection_scheme = "Degree"
 
-each_network_topology_file = {"ATT":'data/ATT_topology_file',"Abilene":'data/abilene',"SURFnet":'data/Surfnet',"IBM":'data/IBM'}
-for i in range(5):
-    each_network_topology_file["random_erdos_renyi_"+str(i)]= "data/random_erdos_renyi_"+str(i)+".txt"
-    each_network_topology_file["random_barabasi_albert_"+str(i)]= "data/random_barabasi_albert_"+str(i)+".txt"
-
-    
-# for i in range(1,6):
-# #     each_network_topology_file["random_erdos_renyi_"+str(i)]= "data/random_erdos_renyi_"+str(i)+".txt"
-#     each_network_topology_file["random_barabasi_albert2_"+str(i)]= "data/random_barabasi_albert2_"+str(i)+".txt"
-# for i in [2,4,6,9,12]:
-#     each_network_topology_file["random_erdos_renyi2_"+str(i)]= "data/random_erdos_renyi2_"+str(i)+".txt"
-EGR_for_dynamic_population(each_network_topology_file,spike_mean,num_spikes,experiment_repeat,storage_node_selection_scheme)
 
 
 # In[ ]:
 
 
+experiment_repeat =20
+spike_mean = 80
+num_spikes = 2
+storage_node_selection_scheme = "Degree"
+each_network_topology_file = {}
+each_topology_size = {}
+topology_sizes1 = [40,60,70,80,90,100,120,140,160]
+topology_sizes2 = [120,140,160,180,200]
+for topology_size in topology_sizes2:
+    for i in range(5):
+                                                                                    
+        each_network_topology_file["barabasi_albert_size"+str(topology_size)+"case_"+str(i)]= "data/size_"+str(topology_size)+"_random_erdos_renyi_"+str(i)+".txt"
+        each_topology_size["barabasi_albert_size"+str(topology_size)+"case_"+str(i)] = topology_size
+        
+#         each_network_topology_file["erdos_renyi_size"+str(topology_size)+"case_"+str(i)]= "data/size_"+str(topology_size)+"_random_barabasi_albert_"+str(i)+".txt"
+#         each_topology_size["erdos_renyi_size"+str(topology_size)+"case_"+str(i)] = topology_size
 
+import os
+list_of_files = os.path.basename("data/")
+from os import listdir
+from os.path import isfile, join
+list_of_files = [f for f in listdir("data/") if isfile(join("data/", f))]
+print("list_of_files",list_of_files)
+renty_files = {}
+for file in list_of_files:
+    if "albert3" in file or "renyi3" in file:#size_70_random_barabasi_albert3_52.txt
+        topology_size = int(file.split("size_")[1].split("_random")[0])
+        if topology_size<=200:
+            try:
+                if len(list(renty_files[topology_size].keys()))<5:
+                    try:
+                        renty_files[topology_size].append(file)
+                    except:
+                        renty_files[topology_size]=[file]
+                    each_network_topology_file[file]= "data/"+str(file)
+                    each_topology_size[file] = topology_size
+            except:
+                try:
+                    renty_files[topology_size].append(file)
+                except:
+                    renty_files[topology_size]=[file]
+                each_network_topology_file[file]= "data/"+str(file)
+                each_topology_size[file] = topology_size
+# print(each_network_topology_file)
+# print(each_topology_size)
+for topology,file in each_network_topology_file.items():
+    print(topology,file,each_topology_size[topology])
+import pdb
+# pdb.set_trace()
+
+# for topology_size in topology_sizes1+topology_sizes2:
+#     for i in range(5):        
+#         each_network_topology_file["barabasi_albert3_size"+str(topology_size)+"case_"+str(i)]= "data/size_"+str(topology_size)+"_random_erdos_renyi3_"+str(i)+".txt"
+#         each_topology_size["barabasi_albert3_size"+str(topology_size)+"case_"+str(i)] = topology_size
+        
+#         each_network_topology_file["erdos_renyi3_size"+str(topology_size)+"case_"+str(i)]= "data/size_"+str(topology_size)+"_random_barabasi_albert3_"+str(i)+".txt"
+#         each_topology_size["erdos_renyi3_size"+str(topology_size)+"case_"+str(i)] = topology_size
+#     each_network_topology_file["random_barabasi_albert2_"+str(i)]= "data/random_barabasi_albert_"+str(i)+".txt"
+# each_network_topology_file = {"Testing_topology":'data/test_topology'}
+minimizing_resource_consumption(each_network_topology_file,each_topology_size,spike_mean,num_spikes,experiment_repeat,storage_node_selection_scheme)
+
+
+# In[2]:
+
+
+# for number_of_storages in range(0,2):
+#     print(number_of_storages)
 
 
 # In[ ]:

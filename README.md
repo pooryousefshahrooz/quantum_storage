@@ -26,4 +26,4 @@ The columns are: network_topology,number_of_storages,num_paths,life_time,
                                                                         distance_between_users,storage_capacity
                                                                         
                                                                         
-Be sure you have folder results in your root folder.
+Be sure you have folders with name "results" and "plots" in your root folder.

@@ -180,6 +180,12 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,life_time,iteratio
 #                               for k in work_load.each_t_real_requests[t] 
 #                               for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]
 #                               )
+#     print("work_load.each_t_real_requests",work_load.each_t_real_requests)
+#     print("work_load.each_t_each_request_demand",work_load.each_t_each_request_demand)
+#     for t in work_load.T[1:]:
+#         for k in work_load.each_t_real_requests[t]:
+#             for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]:
+#                 print("demands",work_load.each_t_each_request_demand[t][k])
     objective = opt_model.sum(1/len(work_load.T[1:])*1/len(work_load.each_t_real_requests[t])*1/work_load.each_t_each_request_demand[t][k]
                               *(w_vars[t,k,p] * network.get_path_length(p)) for t in work_load.T[1:]
                               for k in work_load.each_t_real_requests[t] 
@@ -339,8 +345,8 @@ def minimizing_resource_consumption(each_network_topology_file,spike_means,num_s
                                           (spike_mean,network_topology,fidelity_threshold_range,i,number_of_storages,num_paths))
                                     for storage_pair in network.storage_pairs:
                 #                         print("going to get real paths between storage pair ",storage_pair)
-                                        paths = network.get_real_path(storage_pair,num_paths)
-                                        #print("got paths",paths)
+                                        paths = network.get_real_longest_path(storage_pair,num_paths)
+                                        print("got paths",paths)
                                         for path in paths:
                                             network.set_each_path_length(path_counter_id,path)
                                             network.set_of_paths[path_counter_id] = path
@@ -374,8 +380,8 @@ def minimizing_resource_consumption(each_network_topology_file,spike_means,num_s
                                                 across_all_time_slots_pairs.append(user_pair)
                                     all_sub_paths = []
                                     for user_pair in across_all_time_slots_pairs:
-                                        paths = network.get_real_path(user_pair,num_paths)
-                                        #print("we got real paths for user pair",user_pair,paths)
+                                        paths = network.get_real_longest_path(user_pair,num_paths)
+                                        print("we got real paths for user pair",user_pair,paths)
                                         for path in paths:
                                             network.set_of_paths[path_counter_id] = path
                                             network.set_each_path_length(path_counter_id,path)
@@ -524,7 +530,7 @@ def minimizing_resource_consumption(each_network_topology_file,spike_means,num_s
                                     """we print all variables to check the variables and values"""
                                     #print("for range %s scheme %s for # storage nodes %s we have %s pairs"%
                                           #(fidelity_threshold_range,storage_node_selection_scheme,number_of_storages,len(network.storage_pairs)))
-                                    #print("storage pairs ",network.storage_pairs)
+                                    print("storage pairs ",network.storage_pairs)
                                     #time.sleep(3)
                                     import pdb
                                     #pdb.set_trace()
@@ -591,14 +597,13 @@ def minimizing_resource_consumption(each_network_topology_file,spike_means,num_s
 
 
 experiment_repeat =50
-spike_means = [230,300,320,120,200,250,280,340]
+spike_means = [120,150,200]
 num_spikes = 2
 topology_set = sys.argv[1]
 distance_between_users = int(sys.argv[2])
 storage_node_selection_schemes=["Degree","Random"]
-storage_node_selection_schemes=["Degree"]
 cyclic_workload = "circle"
-storage_capacities = [200,400,800]
+storage_capacities = [200]
 fidelity_threshold_ranges = [0.8,0.85,0.9,0.95,0.98,1.0,0.65,0.7,0.75]
 fidelity_threshold_ranges = [0.8]
 given_life_time_set = [1000]

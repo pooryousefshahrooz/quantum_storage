@@ -28,7 +28,7 @@ import time
 # In[ ]:
 
 
-def CPLEX_resource_cinsumption_minimization(network,work_load,life_time,iteration,cyclic_workload,storage_capacity):
+def CPLEX_maximizing_EGR(network,work_load,life_time,iteration,cyclic_workload,storage_capacity,dynamic_parameter):
     if cyclic_workload =="cyclic":
         cyclic_workload=True
     else:
@@ -37,10 +37,16 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,life_time,iteratio
     opt_model = cpx.Model(name="Storage problem model"+str(iteration))
     w_vars = {}
     u_vars = {}
-    
+
+    all_user_pairs_across_time_slots = []
+    for t in work_load.T:
+        for k in work_load.each_t_requests[t]:
+            if k not in all_user_pairs_across_time_slots:
+                all_user_pairs_across_time_slots.append(k)
+            
     w_vars  = {(t,k,p): opt_model.continuous_var(lb=0, ub= network.max_edge_capacity,
                               name="w_{0}_{1}_{2}".format(t,k,p))  for t in work_load.T 
-               for k in work_load.each_t_requests[t] 
+               for k in all_user_pairs_across_time_slots 
                for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]}
 
     u_vars  = {(t,j,p): opt_model.continuous_var(lb=0, ub= network.max_edge_capacity,
@@ -52,8 +58,7 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,life_time,iteratio
         for t in work_load.T[1:]:
             for j in network.storage_pairs:
                 for p_s in network.each_request_real_paths[j]:
-                    
- 
+
                     if cyclic_workload:
                         opt_model.add_constraint(u_vars[t,j,p_s] == u_vars[(t-1)%len(work_load.T),j,p_s]-
                         opt_model.sum(w_vars[(t-1)%len(work_load.T),k,p] *network.get_required_purification_EPR_pairs(p,work_load.get_each_request_threshold(k,t))
@@ -99,11 +104,11 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,life_time,iteratio
  
      
     # Demand constriant
-    for t in work_load.T[1:]:
-        for k in  work_load.each_t_requests[t]:
-            opt_model.add_constraint(opt_model.sum(w_vars[t,k,p]
-            for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]) >= 
-                    work_load.each_t_each_request_demand[t][k], ctname="constraint_{0}_{1}".format(t,k))
+#     for t in work_load.T[1:]:
+#         for k in  work_load.each_t_requests[t]:
+#             opt_model.add_constraint(opt_model.sum(w_vars[t,k,p]
+#             for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]) >= 
+#                     work_load.each_t_each_request_demand[t][k], ctname="constraint_{0}_{1}".format(t,k))
     
     #Edge constraint
     for t in work_load.T:
@@ -143,21 +148,46 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,life_time,iteratio
             for j in network.storage_pairs:
                  for p_s in network.each_request_real_paths[j]:
                         opt_model.add_constraint(u_vars[t,j,p_s] <=0, ctname="storage_capacity_constraint_{0}_{1}_{2}".format(t,j,p_s))
-    
+    """important constraint for preventing serving requests out of there time slots"""
+    if "dynamic_population" ==dynamic_parameter:
+        for k in all_user_pairs_across_time_slots:
+            for t in work_load.T:
+                if k not in work_load.each_t_real_requests[t]:
+                    opt_model.add_constraint(
+                    opt_model.sum(w_vars[t,k,p] 
+                    for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k] 
+                    ) 
+                     <= 0, ctname="serving_at_time_slot_constraint_{0}_{1}".format(t,k)) 
     """defining an objective, which is a linear expression"""
-
-    objective = opt_model.sum(1/len(work_load.T[1:])*1/len(work_load.each_t_real_requests[t])*1/work_load.each_t_each_request_demand[t][k]
-                              *(w_vars[t,k,p] * network.get_path_length(p)) for t in work_load.T[1:]
+#     objective = opt_model.sum(1/len(work_load.T[1:])*1/len(work_load.each_t_real_requests[t])*1/work_load.each_t_each_request_demand[t][k]
+#                               *(w_vars[t,k,p] * network.get_path_length(p)) for t in work_load.T[1:]
+#                               for k in work_load.each_t_real_requests[t] 
+#                               for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]
+#                               )
+    if "dynamic_population" ==dynamic_parameter:
+        objective = opt_model.sum(1/len(work_load.T[1:])
+                                  *(w_vars[t,k,p]) for t in work_load.T[1:]
+                                  for k in work_load.each_t_real_requests[t] 
+                                  for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]
+                                  )
+    elif "dynamic_weight"==dynamic_parameter:
+        objective = opt_model.sum(1/len(work_load.T[1:])*(w_vars[t,k,p])*work_load.each_user_each_t_weight[k][t] for t in work_load.T[1:]
                               for k in work_load.each_t_real_requests[t] 
                               for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]
                               )
-
+#     opt_model.minimize(1/len(work_load.T[1:])*
+#                     1/opt_model.sum(len(work_load.each_t_real_requests[t]) for t in work_load.T[1:])*
+#                     (opt_model.sum(w_vars[t,k,p] * network.get_path_length(p)/work_load.each_t_each_request_demand[t][k] for t in work_load.T[1:]
+#                               for k in work_load.each_t_real_requests[t] 
+#                               for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]))
+#                                 )
     
-  
-    opt_model.minimize(objective)
+    # for maximization
+    opt_model.maximize(objective)
     
+#     opt_model.solve()
     opt_model.print_information()
-    
+    #try:
     opt_model.solve()
 
     
@@ -168,7 +198,7 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,life_time,iteratio
             objective_value =opt_model.solution.get_objective_value()
     except ValueError:
         print(ValueError)
-
+ 
     each_inventory_per_time_usage = {}
     each_time_each_path_delivered_EPRs = {}
     each_time_each_path_purification_EPRs = {}
@@ -178,22 +208,19 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,life_time,iteratio
             for k in work_load.each_t_real_requests[t]: 
                 for p in network.each_request_real_paths[k]+network.each_request_virtual_paths[k]:
                     try:
-                        each_time_each_path_delivered_EPRs[t][k]+=w_vars[t,k,p].solution_value
+                        each_time_each_path_delivered_EPRs[k]+=w_vars[t,k,p].solution_value
                     except:
-                        try:
-                            each_time_each_path_delivered_EPRs[t][k]= w_vars[t,k,p].solution_value
-                        except:
-                            each_time_each_path_delivered_EPRs[t]={}
-                            each_time_each_path_delivered_EPRs[t][k]= w_vars[t,k,p].solution_value
+                        each_time_each_path_delivered_EPRs[k]= w_vars[t,k,p].solution_value
         
                     try:
-                        each_time_each_path_purification_EPRs[t][k]+=network.get_required_purification_EPR_pairs(p,work_load.get_each_request_threshold(k,t))
+                        each_time_each_path_purification_EPRs[k]+=network.get_required_purification_EPR_pairs(p,work_load.get_each_request_threshold(k,t))
                     except:
-                        try:
-                            each_time_each_path_purification_EPRs[t][k]= network.get_required_purification_EPR_pairs(p,work_load.get_each_request_threshold(k,t))
-                        except:
-                            each_time_each_path_purification_EPRs[t]={}
-                            each_time_each_path_purification_EPRs[t][k]= network.get_required_purification_EPR_pairs(p,work_load.get_each_request_threshold(k,t))        
+                        each_time_each_path_purification_EPRs[k]= network.get_required_purification_EPR_pairs(p,work_load.get_each_request_threshold(k,t))
+        
+        
+        
+        
+        
         for t in work_load.T[1:]:
             for j in network.storage_pairs:
                 for p in network.each_request_real_paths[j]:
@@ -207,7 +234,7 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,life_time,iteratio
                             each_inventory_per_time_usage[j][t]=u_vars[t,j,p].solution_value        
         
     opt_model.clear()
-   
+  
     return objective_value,each_inventory_per_time_usage,each_time_each_path_delivered_EPRs,each_time_each_path_purification_EPRs
 
 
@@ -217,29 +244,27 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,life_time,iteratio
 
 
 
-# In[ ]:
+# In[1]:
 
 
-def feasibility(each_network_topology_file,results_file_path,inventory_utilization_results_file_path,delived_purification_EPRs_file_path,number_of_user_pairs,number_of_time_slots, spike_means,num_spikes,experiment_repeat,storage_node_selection_schemes,fidelity_threshold_ranges,cyclic_workload,storage_capacities,given_life_time_set,distance_between_users,setting_demands):
+def maximizing_EGR(each_network_topology_file,results_file_path,inventory_utilization_results_file_path,delived_purification_EPRs_file_path,number_of_user_pairs,number_of_time_slots, spike_means,num_spikes,experiment_repeat,storage_node_selection_schemes,fidelity_threshold_ranges,cyclic_workload,storage_capacities,given_life_time_set,distance_between_users,dynamic_parameter):
     print("each_network_topology_file %s \n ,results_file_path %s , inventory_utilization_results_file_path %s ,number_of_user_pairs %s ,number_of_time_slots %s , spike_means %s ,num_spikes %s ,experiment_repeat %s ,storage_node_selection_schemes %s ,fidelity_threshold_ranges %s ,cyclic_workload %s ,storage_capacities %s ,given_life_time_set %s ,distance_between_users %s"%(each_network_topology_file,results_file_path,inventory_utilization_results_file_path,number_of_user_pairs,number_of_time_slots, spike_means,num_spikes,experiment_repeat,storage_node_selection_schemes,fidelity_threshold_ranges,cyclic_workload,storage_capacities,given_life_time_set,distance_between_users))
-    
-    for network_topology,file_path in each_network_topology_file.items():
-        for spike_mean in spike_means:
+    for spike_mean in spike_means:
+        for network_topology,file_path in each_network_topology_file.items():
             import pdb
             each_storage_each_path_number_value = {}
             network = Network(file_path)
             
             for i in range(experiment_repeat):
                 network.reset_storage_pairs()
-                network.get_user_pairs(number_of_user_pairs,distance_between_users,number_of_time_slots)
+                if dynamic_parameter=="dynamic_population":
+                    network.get_user_pairs_over_dynamicly_chaning_population(number_of_user_pairs,distance_between_users,number_of_time_slots)
+                elif dynamic_parameter =="dynamic_weight":
+                    network.get_user_pairs(number_of_user_pairs,distance_between_users,number_of_time_slots)
                 work_load = Work_load(number_of_time_slots,"time_demands_file.csv")
-                """we set the demands for each user pair"""
-                if setting_demands=="python_library":
-                    work_load.set_each_user_pair_demands(number_of_time_slots,network.each_t_user_pairs,spike_mean,num_spikes)
-                else:
-                    work_load.set_each_user_pair_demands_randomly(number_of_time_slots,network.each_t_user_pairs,spike_mean,num_spikes)
-                """we set at least one demand for each time to avoid divided by zero error"""
-                work_load.check_demands_per_each_time(network.each_t_user_pairs)                                      
+                if dynamic_parameter=="dynamic_weight":
+                    work_load.set_each_user_weight_over_time(network.each_t_user_pairs)
+                                                                   
                 for storage_capacity in storage_capacities:
                     for fidelity_threshold_range in fidelity_threshold_ranges:
                         network.set_user_pair_fidelity_threshold(fidelity_threshold_range)
@@ -258,6 +283,7 @@ def feasibility(each_network_topology_file,results_file_path,inventory_utilizati
                                     """with new storage pairs, we will check the solution for each number of paths(real and virtual)"""
                                     work_load.reset_variables()
                                     pairs = []
+                                    
                                     for t,user_pairs in network.each_t_user_pairs.items():            
                                         for user_pair in user_pairs:
                                             if user_pair not in pairs:
@@ -265,19 +291,24 @@ def feasibility(each_network_topology_file,results_file_path,inventory_utilizati
                                     network.get_each_user_pair_real_paths(pairs)
                                     
                                     path_counter_id = 0
+                                    
                                     """select and add new storage pairs"""
                                     network.get_new_storage_pairs(number_of_storages,storage_node_selection_scheme)
-                                   
+                                    
                                     work_load.set_each_time_requests(network.each_t_user_pairs,network.storage_pairs)
                                     work_load.set_each_time_real_requests(network.each_t_user_pairs)
-
+                                    
                                     network.get_each_user_pair_real_paths(network.storage_pairs)
                                     if number_of_storages==1:
                                         number_of_storages = 2
 
                                     """first we add the real paths between storage pairs"""
+
+                                    
                                     for storage_pair in network.storage_pairs:
+               
                                         paths = network.get_real_path(storage_pair,num_paths)
+                                        
                                         for path in paths:
                                             network.set_each_path_length(path_counter_id,path)
                                             network.set_of_paths[path_counter_id] = path
@@ -290,8 +321,11 @@ def feasibility(each_network_topology_file,results_file_path,inventory_utilizati
                                                 network.each_storage_real_paths[storage_pair].append(path)
                                             except:
                                                 network.each_storage_real_paths[storage_pair]=[path]
-                                            path_counter_id+=1
                 
+                                            path_counter_id+=1
+
+
+
                                     across_all_time_slots_pairs = []
                                     for t,user_pairs in network.each_t_user_pairs.items():
                                         for user_pair in user_pairs:
@@ -300,6 +334,7 @@ def feasibility(each_network_topology_file,results_file_path,inventory_utilizati
                                     all_sub_paths = []
                                     for user_pair in across_all_time_slots_pairs:
                                         paths = network.get_real_path(user_pair,num_paths)
+                                        
                                         for path in paths:
                                             network.set_of_paths[path_counter_id] = path
                                             network.set_each_path_length(path_counter_id,path)
@@ -308,8 +343,9 @@ def feasibility(each_network_topology_file,results_file_path,inventory_utilizati
                                                 network.each_request_real_paths[user_pair].append(path_counter_id)
                                             except:
                                                 network.each_request_real_paths[user_pair]=[path_counter_id]
+                                           
                                             path_counter_id+=1
-                            
+  
                                         for storage_pair in network.storage_pairs:
                                             """add one new path to the previous paths"""
 
@@ -318,12 +354,14 @@ def feasibility(each_network_topology_file,results_file_path,inventory_utilizati
                                                 paths = network.get_paths_to_connect_users_to_storage(user_pair,real_sub_path,num_paths)
 
                                                 this_sub_path_id = network.each_path_path_id[tuple(real_sub_path)]
+                                               
 
                                                 for path in paths:
                                                     path = network.remove_storage_pair_real_path_from_path(real_sub_path,path)
                                                     network.set_each_path_length(path_counter_id,path)
                                                     """we remove the sub path that is connecting two storage pairs 
                                                     from the path because we do not want to check the edge capacity for the edges of this subpath"""
+                
                                                     try:
                                                         network.each_request_virtual_paths_include_subpath[user_pair][this_sub_path_id].append(path_counter_id)
                                                     except:
@@ -332,21 +370,24 @@ def feasibility(each_network_topology_file,results_file_path,inventory_utilizati
                                                         except:
                                                             network.each_request_virtual_paths_include_subpath[user_pair]={}
                                                             network.each_request_virtual_paths_include_subpath[user_pair][this_sub_path_id]=[path_counter_id]
-         
+  
                                                     if this_sub_path_id not in all_sub_paths:
                                                         all_sub_paths.append(this_sub_path_id)
 
+                                                    
                                                     network.set_of_paths[path_counter_id] = path
                                                     try:
                                                         network.each_request_virtual_paths[user_pair].append(path_counter_id)
                                                     except:
                                                         network.each_request_virtual_paths[user_pair]=[path_counter_id]
-                
+
                                                     path_counter_id+=1
 
 
                                                 for pair in network.storage_pairs:
                                                     network.each_request_virtual_paths[pair]=[]
+
+      
 
                                     if number_of_storages==0:
                                         for t,pairs in network.each_t_user_pairs.items():
@@ -391,7 +432,6 @@ def feasibility(each_network_topology_file,results_file_path,inventory_utilizati
                                                             network.each_request_virtual_paths_include_subpath[k]={}
                                                             network.each_request_virtual_paths_include_subpath[k][sub_path_id] = []
 
-              
                                     for t in work_load.T:
                                         if number_of_storages!=0:
                                             for j in network.storage_pairs:
@@ -430,26 +470,22 @@ def feasibility(each_network_topology_file,results_file_path,inventory_utilizati
 
                                     """we set the required EPR pairs to achieve each request threshold fidelity"""
                                     network.set_required_EPR_pairs_for_path_fidelity_threshold()
-
-
-                                    """solve the optimization"""
-#                                     
+                          
+                                    
                                     for life_time in given_life_time_set:
                                         try:
                                             objective_value=-1
                                             try:
 
-                                                objective_value,each_inventory_per_time_usage,each_time_each_path_delivered_EPRs,each_time_each_path_purification_EPRs = CPLEX_resource_cinsumption_minimization(network,work_load,life_time,i,cyclic_workload,storage_capacity)
+                                                objective_value,each_inventory_per_time_usage,each_time_each_path_delivered_EPRs,each_time_each_path_purification_EPRs = CPLEX_maximizing_EGR(network,work_load,life_time,i,cyclic_workload,storage_capacity,dynamic_parameter)
                                             except ValueError:
                                                 print(ValueError)
                                                 #pass
                                             objective_values.append(objective_value)
 
-               
                                             print("for topology %s iteration %s from %s spike mean %s capacity %s  fidelity range %s  life time %s storage %s and path number %s objective_value %s"%
                                             (network_topology,i,experiment_repeat, spike_mean,storage_capacity,fidelity_threshold_range,life_time, number_of_storages,num_paths, objective_value))  
-                                            
-                                            
+
                                             with open(results_file_path, 'a') as newFile:                                
                                                 newFileWriter = csv.writer(newFile)
                                                 newFileWriter.writerow([network_topology,number_of_storages,num_paths,
@@ -460,27 +496,25 @@ def feasibility(each_network_topology_file,results_file_path,inventory_utilizati
                                                                         distance_between_users,storage_capacity]) 
                                             for storage_pair,t_saved_EPRs in each_inventory_per_time_usage.items():
                                                 for t ,EPRs in t_saved_EPRs.items():
-                                                    this_slot_demands = work_load.get_each_t_whole_demands(t,network.each_t_user_pairs[t])
+                                                    this_slot_demands =0
                                                     with open(inventory_utilization_results_file_path, 'a') as newFile:                                
                                                         newFileWriter = csv.writer(newFile)
                                                         newFileWriter.writerow([network_topology,number_of_storages,
                                                         num_paths,i,life_time,storage_pair,t,EPRs,spike_mean,
                                                         num_spikes,storage_node_selection_scheme,this_slot_demands,
                                                         fidelity_threshold_range,
-                                                        cyclic_workload,distance_between_users,storage_capacity])
-                                            for t,k_delived_EPRs in  each_time_each_path_delivered_EPRs.items():
-                                                this_slot_demands = work_load.get_each_t_whole_demands(t,network.each_t_user_pairs[t])
-                                                for k,delived_EPRs in k_delived_EPRs.items():
-                                                    purification_EPRs = each_time_each_path_purification_EPRs[t][k]
+                                                        cyclic_workload,distance_between_users,storage_capacity]) 
+                                            for k,delived_EPRs in each_time_each_path_delivered_EPRs.items():
+                                                if k in each_time_each_path_purification_EPRs:
+                                                    purification_EPRs = each_time_each_path_purification_EPRs[k]
                                                     with open(delived_purification_EPRs_file_path, 'a') as newFile:                                
                                                         newFileWriter = csv.writer(newFile)
                                                         newFileWriter.writerow([network_topology,number_of_storages,
-                                                        num_paths,i,t,life_time,spike_mean,
-                                                        num_spikes,storage_node_selection_scheme,this_slot_demands,
+                                                        num_paths,i,life_time,spike_mean,
+                                                        num_spikes,storage_node_selection_scheme,
                                                         fidelity_threshold_range,
                                                         cyclic_workload,distance_between_users,storage_capacity,
                                                         k,delived_EPRs,purification_EPRs])
-        
                                         except ValueError:
                                             #pass
                                             print(ValueError)
@@ -495,30 +529,32 @@ def feasibility(each_network_topology_file,results_file_path,inventory_utilizati
 # In[ ]:
 
 
-experiment_repeat =50 #indicates the number of times that we repeat the experiment
-spike_means = [1200] # list of mean value for spike model traffic generation
-num_spikes = 2 # shows the number of nodes that have spike in their demand. Should be less than the number of user pairs
-topology_set = sys.argv[1] # can be either real, random1, or random2
+experiment_repeat =100
+spike_means = [300]
+num_spikes = 2
+print("please pass arguments in order topology set(real,random1 or random2) and dynamic parameter")
+print("please identify the dynamic parameter by entering one of these: dynamic_population or dynamic_weight")
 
-setting_demands = sys.argv[2] # indicates the way we generate the demands. python_library for using tgem library. ransom for generating a random demand
-if setting_demands not in ["random","python_library"]:
-    print("please run the script by python IBM_cplex_feasibiloty.py real/random1/random2 random/python_library")
+topology_set = sys.argv[1]
+distance_between_users = 2
+dynamic_parameter = sys.argv[2]
+if dynamic_parameter not in ["dynamic_population","dynamic_weight"]:
+    print("please pass arguments in order topology set(real,random1 or random2) and dynamic parameter")
+    print("please identify the dynamic parameter by entering one of these: dynamic_population or dynamic_weight")
 else:
-    storage_node_selection_schemes=["Degree","Random"]
-    storage_node_selection_schemes=["Degree"]
+    storage_node_selection_schemes=["Random","Degree"]
     cyclic_workload = "sequential"
-    storage_capacities = [400,500,200,600,100]
     storage_capacities = [500]
     fidelity_threshold_ranges = [0.65,0.7,0.75,0.8,0.85,0.9,0.95,0.98,1.0]
-    fidelity_threshold_ranges = [0.8,0.75,0.85,0.95,0.98,1.0]
-    distance_between_users = 2
+    fidelity_threshold_ranges = [0.65,0.7,0.75,0.8,0.85,0.9,0.95,0.98,1.0]
 
-    given_life_time_set = [1000,2]# 1000 indicates infinite time slot life time and 2 indicates one time slot life
+    
+    given_life_time_set = [2,1000]
     number_of_user_pairs =3
-    number_of_time_slots = 15
-    results_file_path = 'results/results_feasibility.csv'
-    inventory_utilization_results_file_path = 'results/inventory_feasibility_utilization.csv'
-    delived_purification_EPRs_file_path = 'results/delived_purification_EPRs_file_path.csv'
+    number_of_time_slots = 7
+    delived_purification_EPRs_file_path = "results/delived_purification_EPRs_"+str(dynamic_parameter)+"_file_path.csv"
+    results_file_path = "results/results_maximizing_egr_"+str(dynamic_parameter)+".csv"
+    inventory_utilization_results_file_path = "results/inventory_maximizing_egr_utilization"+str(dynamic_parameter)+".csv"
     each_network_topology_file = {}
     if topology_set =="real":
         each_network_topology_file = {"ATT":'data/ATT_topology_file',"Abilene":'data/abilene',"SURFnet":'data/Surfnet',"IBM":'data/IBM'}
@@ -551,7 +587,7 @@ else:
     #     f.close()  
     #     all_diameters.append(nx.diameter(g))
 
-    feasibility(each_network_topology_file,results_file_path,inventory_utilization_results_file_path,delived_purification_EPRs_file_path,number_of_user_pairs,number_of_time_slots,spike_means,num_spikes,experiment_repeat,storage_node_selection_schemes,fidelity_threshold_ranges,cyclic_workload,storage_capacities,given_life_time_set,distance_between_users,setting_demands)
+    maximizing_EGR(each_network_topology_file,results_file_path,inventory_utilization_results_file_path,delived_purification_EPRs_file_path,number_of_user_pairs,number_of_time_slots,spike_means,num_spikes,experiment_repeat,storage_node_selection_schemes,fidelity_threshold_ranges,cyclic_workload,storage_capacities,given_life_time_set,distance_between_users,dynamic_parameter)
 
 
 # In[2]:

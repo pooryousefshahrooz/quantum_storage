@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[44]:
+# In[ ]:
 
 
 from tmgen.models import uniform_tm,spike_tm,modulated_gravity_tm,random_gravity_tm,gravity_tm,exp_tm
@@ -141,6 +141,22 @@ class Work_load(object):
             except:
                 self.each_t_each_request_demand[0]={}
                 self.each_t_each_request_demand[0][request] = 0
+    def set_each_user_pair_demands_online(self,number_of_time_slots,given_each_t_each_pair_demands):
+        #self.each_t_each_request_demand = {}
+        for time,request_demand in given_each_t_each_pair_demands.items():
+            for request,demand in request_demand.items():
+                try:
+                    self.each_t_each_request_demand[time][request] = given_each_t_each_pair_demands[time][request]
+                except:
+                    self.each_t_each_request_demand[time] = {}
+                    self.each_t_each_request_demand[time][request] = given_each_t_each_pair_demands[time][request]
+                                
+            for request in given_each_t_each_pair_demands[time]:
+                try:
+                    self.each_t_each_request_demand[0][request] = 0
+                except:
+                    self.each_t_each_request_demand[0]={}
+                    self.each_t_each_request_demand[0][request] = 0
     def set_each_user_pair_demands(self,number_of_time_slots,each_t_user_pairs,spike_mean,num_spikes):
         self.each_t_each_request_demand = {}
         num_of_pairs= len(list(each_t_user_pairs[0]))
@@ -233,6 +249,42 @@ class Work_load(object):
 #                                 pass
 #                         except:
 #                             self.each_t_real_requests[time] = user_pairs
+    def set_each_user_pair_demands_randomly(self,number_of_time_slots,each_t_user_pairs,spike_mean,num_spikes):
+        self.each_t_each_request_demand = {}
+        num_of_pairs= len(list(each_t_user_pairs[0]))
+        
+        for time in range(0,number_of_time_slots):
+            each_pair_demand = {}
+            if time%2==0:
+                for user_pair in each_t_user_pairs[time]:
+                    demand  = random.randint(2, 3)
+                    each_pair_demand[user_pair] = demand
+            else:
+                for user_pair in each_t_user_pairs[time]:
+                    demand  = random.randint(1, 2)
+                    each_pair_demand[user_pair] = demand
+            if time==number_of_time_slots-1:
+                for user_pair in each_t_user_pairs[time]:
+                    demand  = random.randint(200, spike_mean)
+                    #demand = 1200
+                    each_pair_demand[user_pair] = demand
+#             each_pair_demand[user_pairs[0]] = demand1
+#             each_pair_demand[user_pairs[1]] = demand2
+            for request in each_t_user_pairs[time]:
+                demand =each_pair_demand[request]
+                try:
+                    self.each_t_each_request_demand[time][request] = demand
+                except:
+                    self.each_t_each_request_demand[time] = {}
+                    self.each_t_each_request_demand[time][request] = demand
+                
+                
+        for request in each_t_user_pairs[time]:
+            try:
+                self.each_t_each_request_demand[0][request] = 0
+            except:
+                self.each_t_each_request_demand[0]={}
+                self.each_t_each_request_demand[0][request] = 0
     def get_each_t_whole_demands(self,time,user_pairs):
         sum_demands = 0
         for user_pair in user_pairs:
@@ -291,18 +343,37 @@ class Work_load(object):
     
 
 
-# In[1]:
+# In[ ]:
 
 
-# for time in range(0,15):
-#     if time%2==0:
-#         print("low")
-#     else:
-#         print("high")
-#     print(time)
 
 
-# In[46]:
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
 
 
 # def generate_demands(num_user_pairs, time_epochs):
@@ -346,14 +417,14 @@ class Work_load(object):
 # print("done!")
 
 
-# In[29]:
+# In[ ]:
 
 
 # tm = spike_tm(3,2,100,2)
 # print(tm)
 
 
-# In[47]:
+# In[ ]:
 
 
 # #for time in [0,1]:
@@ -372,7 +443,7 @@ class Work_load(object):
 #             newFileWriter.writerow([time,each_pair_src_dst[pair],traffic_over_times[time]])
 
 
-# In[2]:
+# In[ ]:
 
 
 # from tmgen.models import uniform_tm
@@ -380,35 +451,41 @@ class Work_load(object):
 # print(tm) 
 
 
-# In[27]:
+# In[ ]:
 
 
 # from tmgen.models import exp_tm
 # tm = exp_tm(3, 500, 2)
 
 
-# In[8]:
+# In[ ]:
 
 
 # tm.matrix
 
 
-# In[10]:
+# In[ ]:
 
 
 # tm.at_time(0) 
 
 
-# In[11]:
+# In[ ]:
 
 
-# tm.between(0,2,'all') 
 
 
-# In[12]:
+
+# In[ ]:
 
 
-# tm.between(0,2,'max')
+
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 import networkx as nx
@@ -109,9 +109,9 @@ class Network:
             for dst in self.nodes:
                 if src!=dst and (src,dst) not in self.set_E and (dst,src) not in self.set_E:
                     shortest_path = nx.shortest_path(self.g, source=src, target=dst)
-                    if len(shortest_path)>=distance_between_users:
-                        if (src,dst) not in candidate_user_pairs and (dst,src) not in candidate_user_pairs:
-                            candidate_user_pairs.append((src,dst))
+#                     if len(shortest_path)>=distance_between_users:
+                    if (src,dst) not in candidate_user_pairs and (dst,src) not in candidate_user_pairs:
+                        candidate_user_pairs.append((src,dst))
         #print("these are candidate pairs",candidate_user_pairs)
         #candidate_user_pairs = [(1,6),(2,10),(4,8),(6,11),(5,10),(3,9),(8,10),(0,3),(1,10),(2,5)]
         for t in range(number_of_time_slots):
@@ -154,17 +154,41 @@ class Network:
                 self.each_t_user_pairs[t]= [(1,5)]
             except:
                 self.each_t_user_pairs[t]= [(1,5)]
+    def get_user_pairs_online(self,number_of_user_pairs,distance_between_users,number_of_time_slots):
+        each_t_user_pairs = {0: [(19, 24), (0, 18), (11, 23)], 
+                     1: [(19, 24), (0, 18), (11, 23)], 
+                     2: [(19, 24), (0, 18), (11, 23)], 
+                     3: [(19, 24), (0, 18), (11, 23)], 
+                     4: [(19, 24), (0, 18), (11, 23)], 
+                     5: [(19, 24), (0, 18), (11, 23)], 
+                     6: [(19, 24), (0, 18), (11, 23)], 
+                     7: [(19, 24), (0, 18), (11, 23)], 
+                     8: [(19, 24), (0, 18), (11, 23)], 
+                     9: [(19, 24), (0, 18), (11, 23)], 
+                     10: [(19, 24), (0, 18), (11, 23)], 
+                     11: [(19, 24), (0, 18), (11, 23)], 
+                     12: [(19, 24), (0, 18), (11, 23)], 
+                     13: [(19, 24), (0, 18), (11, 23)], 
+                     14: [(19, 24), (0, 18), (11, 23)]}
+        for t,user_pairs in each_t_user_pairs.items():
+            self.each_t_user_pairs[t]= user_pairs
+        
     def get_user_pairs(self,number_of_user_pairs,distance,number_of_time_slots):
+        #print("getting user pairs...")
         self.each_t_user_pairs = {}
         candidate_user_pairs = []
-        for src in self.nodes:
-            for dst in self.nodes:
-                if src!=dst and (src,dst) not in self.set_E and (dst,src) not in self.set_E:
-                    shortest_path = nx.shortest_path(self.g, source=src, target=dst)
-                    if len(shortest_path)>=distance:
+        while(len(candidate_user_pairs)<number_of_user_pairs):
+            for src in self.nodes:
+                for dst in self.nodes:
+                    if src!=dst and (src,dst) not in self.set_E and (dst,src) not in self.set_E:
+                        shortest_path = nx.shortest_path(self.g, source=src, target=dst)
+                        #if len(shortest_path)>=distance:
                         if (src,dst) not in candidate_user_pairs and (dst,src) not in candidate_user_pairs:
                             candidate_user_pairs.append((src,dst))
-        #print("these are candidate pairs",candidate_user_pairs)
+            #distance = distance-1
+            #print("we minused the distance")
+#         print("these are candidate pairs",candidate_user_pairs)
+        
         #candidate_user_pairs = [(1,6),(2,10),(4,8),(6,11),(5,10),(3,9),(8,10),(0,3),(1,10),(2,5)]
         for t in range(number_of_time_slots):
             self.each_t_user_pairs[t] = []
@@ -178,6 +202,11 @@ class Network:
                 self.each_t_user_pairs[t]= selected_fixed_user_pairs
             except:
                 self.each_t_user_pairs[t]= selected_fixed_user_pairs
+            #for pair in selected_fixed_user_pairs:
+                #shortest_path = nx.shortest_path(self.g, source=pair[0], target=pair[1])
+                #print("the shortest path between %s  pair is %s"%(pair,len(shortest_path)))
+        #import time
+        #time.sleep(4)
                     
     def set_user_pair_fidelity_threshold(self,fidelity_threshold_range):
         self.each_user_request_fidelity_threshold = {}
@@ -420,14 +449,22 @@ class Network:
         else:
             self.storage_pairs= []
             self.storage_nodes= []
-            
+    def reset_storage_pairs(self):
+        self.storage_pairs=[]
+        self.storage_nodes=[]
     def get_new_storage_pairs(self,number_of_storages,storage_node_selection_scheme):
-        
-        
         if storage_node_selection_scheme == "Degree":
+            #print("we are selecting storage nodes")
+            import time
+            all_user_pairs = []
+            #time.sleep(2)
             user_pair_nodes = set([])
             for t,user_pairs in self.each_t_user_pairs.items():
                 for user_pair in user_pairs:
+                    if user_pair not in all_user_pairs:
+                        all_user_pairs.append(user_pair)
+                    if (user_pair[1],user_pair[0]) not in all_user_pairs:
+                        all_user_pairs.append((user_pair[1],user_pair[0]))
                     user_pair_nodes.add(user_pair[0])
                     user_pair_nodes.add(user_pair[1])
             user_pair_nodes = list(user_pair_nodes)
@@ -453,27 +490,36 @@ class Network:
                     if self.storage_pairs:
                         for storage_node in self.storage_nodes:
                             if ((storage1,storage_node) not in self.storage_pairs and (storage_node,storage1) not in self.storage_pairs) and storage1!=storage_node:
-                                self.storage_pairs.append((storage1,storage_node))
+                                if (storage1,storage_node) not in all_user_pairs:
+                                    self.storage_pairs.append((storage1,storage_node))
                         if storage1 not in self.storage_nodes:
-                            self.storage_nodes.append(storage1)
+                            if storage1 not in user_pair_nodes:
+                                self.storage_nodes.append(storage1)
                     else:
                         if len(candidate_nodes)>1:
                             storage1 = candidate_nodes[0]
                             storage2 = candidate_nodes[1]
                             candidate_nodes.pop(0)
                             if (storage1,storage2) not in self.storage_pairs and (storage2,storage1) not in self.storage_pairs:
-                                self.storage_pairs.append((storage1,storage2))
-                                self.storage_nodes.append(storage1)
-                                self.storage_nodes.append(storage2)
+                                if (storage1,storage2) not in all_user_pairs:
+                                    self.storage_pairs.append((storage1,storage2))
+                                    self.storage_nodes.append(storage1)
+                                    self.storage_nodes.append(storage2)
             
         else:
             new_selected_storage_nodes = []
             new_selected_storage_pairs = []
             user_pair_nodes = set([])
+            all_user_pairs = []
             for t,user_pairs in self.each_t_user_pairs.items():
                 for user_pair in user_pairs:
                     user_pair_nodes.add(user_pair[0])
                     user_pair_nodes.add(user_pair[1])
+                    
+                    if user_pair not in all_user_pairs:
+                        all_user_pairs.append(user_pair)
+                    if (user_pair[1],user_pair[0]) not in all_user_pairs:
+                        all_user_pairs.append((user_pair[1],user_pair[0]))
             user_pair_nodes = list(user_pair_nodes)
             permitted_nodes = []
             for node in self.nodes:
@@ -485,9 +531,10 @@ class Network:
                     for storage2 in permitted_nodes:
                         if storage1 != storage2:
                             if (storage1,storage2) not in self.storage_pairs and (storage2,storage1) not in self.storage_pairs:
-                                self.storage_pairs.append((storage1,storage2))
-                                self.storage_nodes.append(storage1)
-                                self.storage_nodes.append(storage2)
+                                if (storage1,storage2) not in all_user_pairs:
+                                    self.storage_pairs.append((storage1,storage2))
+                                    self.storage_nodes.append(storage1)
+                                    self.storage_nodes.append(storage2)
 
             else:
                 while(len(self.storage_nodes)<number_of_storages and len(permitted_nodes)>0):
@@ -498,7 +545,8 @@ class Network:
                     if self.storage_pairs:
                         for storage_node in self.storage_nodes:
                             if ((storage1,storage_node) not in self.storage_pairs and (storage_node,storage1) not in self.storage_pairs) and storage1!=storage_node:
-                                self.storage_pairs.append((storage1,storage_node))
+                                if (storage1,storage_node) not in all_user_pairs:
+                                    self.storage_pairs.append((storage1,storage_node))
                         if storage1 not in self.storage_nodes:
                             self.storage_nodes.append(storage1)
                     else:
@@ -508,9 +556,10 @@ class Network:
                             storage2 = permitted_nodes[random.randint(0,len(permitted_nodes)-1)]
                         #print("for round  we have new storage node %s"%(storage1))
                         if (storage1,storage2) not in self.storage_pairs and (storage2,storage1) not in self.storage_pairs:
-                            self.storage_pairs.append((storage1,storage2))
-                            self.storage_nodes.append(storage1)
-                            self.storage_nodes.append(storage2)
+                            if (storage1,storage2) not in all_user_pairs:
+                                self.storage_pairs.append((storage1,storage2))
+                                self.storage_nodes.append(storage1)
+                                self.storage_nodes.append(storage2)
                         #print("this is our first storage pair",self.storage_pairs)
     def reset_pair_paths(self):
         self.set_of_paths = {}
@@ -525,12 +574,34 @@ class Network:
         #print("we are getting all paths for pairs ",pairs)
         for user_pair in pairs:
             shortest_paths = nx.all_shortest_paths(self.g,source=user_pair[0],target=user_pair[1], weight='weight')
+            #print(shortest_paths)
+            #print(shortest_paths.sort(reverse=True))
+            import pdb
+            #pdb.set_trace()
             paths = []
             for p in shortest_paths:
                 paths.append(p)
             self.each_user_pair_all_real_paths[user_pair] = paths
 #             for path in paths:
 #                 print("for pair %s we have these shortest paths %s"%(user_pair,len(path)))
+    def get_real_longest_path(self,user_or_storage_pair,number_of_paths):
+        all_paths=[]
+        for path in nx.all_simple_paths(self.g,source=user_or_storage_pair[0],target=user_or_storage_pair[1]):
+            #all_paths.append(path)
+
+            node_indx = 0
+            path_edges = []
+            for node_indx in range(len(path)-1):
+                path_edges.append((path[node_indx],path[node_indx+1]))
+                node_indx+=1
+            all_paths.append(path_edges)
+
+        all_paths.sort(key=len,reverse=True)
+        if len(all_paths)>=number_of_paths:
+            return all_paths[:number_of_paths]
+        else:
+            return all_paths
+                        
     def get_real_path(self,user_or_storage_pair,number_of_paths):
         path_selecion_flag = False
         path_counter = 1
@@ -577,7 +648,8 @@ class Network:
             random_fidelity = random.uniform(0.94,0.97)
             self.each_edge_fidelity[(int(s),int(d))] = round(random_fidelity,3)
             self.each_edge_fidelity[(int(d),int(s))] = round(random_fidelity,3)
-            random_capacity = random.randint(100, 200)
+            random_capacity = random.randint(200, 400)
+#             random_capacity = 400
             
             self.each_edge_capacity[(int(s),int(d))] = random_capacity
             if random_capacity>self.max_edge_capacity:
@@ -731,7 +803,7 @@ class Network:
     
 
 
-# In[28]:
+# In[ ]:
 
 
 
@@ -910,27 +982,31 @@ class Network:
 #     # This code is contributed by PranchalK
 
 
-# In[44]:
+# In[ ]:
 
 
 def generate_random_topologies(topology_sizes):
     not_connected_topologies = []
+    import networkx as nx
     for topology_size in topology_sizes:
         avg_degrees = []
         all_diameters = []
         avg_edges = []
         topology_indx = 0
         added_connected_topologies = []
-        while(len(added_connected_topologies)<5):
+        while(len(added_connected_topologies)<2):
             degrees = []
-            graph = nx.erdos_renyi_graph(topology_size, 0.1, seed=None, directed=False)
+            graph = nx.erdos_renyi_graph(topology_size, 0.01, seed=None, directed=False)
+            
 #             graph = nx.barabasi_albert_graph(topology_size, 2)
             set_of_E = set([])
         #     file1 = open("data/random_erdos_renyi2_"+str(i)+".txt", "w")
             try:
                 all_diameters.append(nx.diameter(graph))
                 added_connected_topologies.append(topology_indx)
-                file1 = open("data/size_"+str(topology_size)+"_random_barabasi_albert_"+str(topology_indx)+".txt", "w")
+#                 file1 = open("data/size_"+str(topology_size)+"_random_barabasi_albert_0_0_1_"+str(topology_indx)+".txt", "w")
+                file1 = open("data/size_"+str(topology_size)+"_random_erdos_renyi_0_0_1_"+str(topology_indx)+".txt", "w")
+
                 file1.writelines("Link_index	Source	Destination	Capacity(kbps)"+"\n")
                 edge_counter = 0
                 for e in graph.edges:
@@ -953,12 +1029,16 @@ def generate_random_topologies(topology_sizes):
             topology_indx+=1
         print("avg degree %s and avg edges %s "%(sum(avg_degrees)/len(avg_degrees),sum(avg_edges)/len(avg_edges)))
         print("not_connected_topologies",not_connected_topologies)
+        print(all_diameters)
 # topology_sizes = [40,60,70,80,90,100,120,140,160]
-# topology_sizes = [180,200,220]
+# topology_sizes = [400]
 # generate_random_topologies(topology_sizes)
+# for i in range(2):
+#     print(i)
+# print(all_diameters)
 
 
-# In[18]:
+# In[ ]:
 
 
 # avg_degrees = []
@@ -984,13 +1064,13 @@ def generate_random_topologies(topology_sizes):
 # print("avg degree %s and avg edges %s "%(sum(avg_degrees)/len(avg_degrees),sum(avg_edges)/len(avg_edges)))
 
 
-# In[14]:
+# In[ ]:
 
 
 
 
 
-# In[7]:
+# In[ ]:
 
 
 # f = open("data/IBM", 'r')
@@ -1107,7 +1187,7 @@ def generate_random_topologies(topology_sizes):
 
 
 
-# In[32]:
+# In[ ]:
 
 
 def get_topologies_properties(topology_sizes):
@@ -1117,12 +1197,13 @@ def get_topologies_properties(topology_sizes):
             list_of_topologies = []
 
     #         list_of_topologies = ["data/ATT_topology_file",'data/abilene','data/Surfnet',"data/IBM"]
-            for i in range(5):
+            for i in range(2):
     #             list_of_topologies.append("data/random_erdos_renyi2_"+str(i)+".txt")
     #             list_of_topologies.append("data/random_barabasi_albert2_"+str(i)+".txt")
     #             list_of_topologies.append("data/random_erdos_renyi2_"+str(i)+".txt")
 #                 list_of_topologies.append("data/random_barabasi_albert2_"+str(i)+".txt")
-                list_of_topologies.append("data/size_"+str(topology_size)+"_random_barabasi_albert_"+str(i)+".txt")
+#                 list_of_topologies.append("data/size_"+str(topology_size)+"_random_barabasi_albert_"+str(i)+".txt")
+                list_of_topologies.append("data/size_"+str(400)+"_random_erdos_reni_0_0_1_"+str(i)+".txt")
             all_degrees=[]
             all_edges=[]
             all_diameters=[]
@@ -1161,7 +1242,7 @@ def get_topologies_properties(topology_sizes):
             print(ValueError)
             pass
         
-# topology_sizes = [40,60,70,80,90,100,120,140,160]
+# topology_sizes = [400]
 # get_topologies_properties(topology_sizes)
 #2,4,6,9,12,13,15,16,17,18
 

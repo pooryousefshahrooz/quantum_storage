@@ -160,7 +160,8 @@ class Work_load(object):
     def set_each_user_pair_demands(self,number_of_time_slots,each_t_user_pairs,spike_mean,num_spikes):
         self.each_t_each_request_demand = {}
         num_of_pairs= len(list(each_t_user_pairs[0]))
-        print(num_of_pairs,num_spikes,spike_mean,number_of_time_slots)
+#         print(num_of_pairs,num_spikes,spike_mean,number_of_time_slots)
+#         print("each_t_user_pairs",each_t_user_pairs)
         tm = spike_tm(num_of_pairs+1,num_spikes,spike_mean,number_of_time_slots)
         for time in range(number_of_time_slots):
             traffic = tm.at_time(time)
@@ -257,16 +258,16 @@ class Work_load(object):
             each_pair_demand = {}
             if time%2==0:
                 for user_pair in each_t_user_pairs[time]:
-                    demand  = random.randint(2, 3)
+                    demand  = random.randint(1, spike_mean)
                     each_pair_demand[user_pair] = demand
             else:
                 for user_pair in each_t_user_pairs[time]:
-                    demand  = random.randint(1, 2)
+                    demand  = random.randint(1, spike_mean)
                     each_pair_demand[user_pair] = demand
             if time==number_of_time_slots-1:
                 for user_pair in each_t_user_pairs[time]:
-                    demand  = random.randint(200, spike_mean)
-                    #demand = 1200
+                    demand  = random.randint(1, spike_mean)
+                    
                     each_pair_demand[user_pair] = demand
 #             each_pair_demand[user_pairs[0]] = demand1
 #             each_pair_demand[user_pairs[1]] = demand2

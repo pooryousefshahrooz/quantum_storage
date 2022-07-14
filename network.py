@@ -55,6 +55,7 @@ class Network:
         self.each_request_virtual_paths = {(1,6):[3,4,7],(2,5):[6],(10,12):[]}
         self.each_request_real_paths = {}
         self.each_request_virtual_paths = {}
+        self.each_n_f_purification_result = {}
         self.storage_pairs = [(2,5),(10,12)]
         self.storage_nodes = [2,5,10,12]
         self.each_storage_capacity = {2:1000,5:1000,10:1000,12:1000}
@@ -241,12 +242,18 @@ class Network:
             
         return C
     def recursive_purification(self,n,f):
-        if n==1:
+        #print("n is ",n)
+        n = int(n)
+        if f ==1.0:
             return f
         else:
-            numerator=  f * self.recursive_purification(n-1,f)
-            denominator = numerator + (1-f) * (1-self.recursive_purification(n-1,f))
-            return round(numerator/(denominator),4)
+            if n<=0 or (n==1):
+                return f
+            else:
+                numerator=  f * self.recursive_purification(n-1,f)
+                denominator = numerator + (1-f) * (1-self.recursive_purification(n-1,f))
+
+                return round(numerator/(denominator),4)
     
     def get_possible_threshold_for_each_n(self,basic_fidelities):
     #         for path in self.set_of_paths:
@@ -339,7 +346,7 @@ class Network:
                 for target in targets:
             #         print("with basic %s for target %s"%(basic_fidelity,target))
                     if target in available_targets:
-                        last_target_threshold_n = min(each_basic_fidelity_target_fidelity_required_EPRs[basic_fidelity][target])
+                        last_target_threshold_n = min(each_basic_fidelity_target_fidelity_required_EPRs[basic_fidelity][target])+1
                         last_available_target_threshold = target
                     if target not in available_targets:
                         try:
@@ -392,6 +399,15 @@ class Network:
                     except:
                         self.oracle_for_target_fidelity[path] = {}
                         self.oracle_for_target_fidelity[path][target] = min(required_EPRs)
+                
+#         for p,bf in self.each_path_basic_fidelity.items():
+#             print("path basic fidelity",p,bf)
+#         print(self.oracle_for_target_fidelity.keys())
+#         for p,target_EPR in self.oracle_for_target_fidelity.items():
+#             for target,EPR in target_EPR.items():
+#                 print("for path %s with F %s to reach %s you need %s",p,self.each_path_basic_fidelity[p],target,EPR)
+#         import time
+#         time.sleep(2)
 #         for path,target_EPRs in self.oracle_for_target_fidelity.items():
 #             for target,EPRs in target_EPRs.items():
 #                 print("for path %s for threshold %s we need %s"%(path,target,EPRs))
@@ -401,7 +417,7 @@ class Network:
 #                 for t,n in target_n.items():
 #                     print("for path %s to reach %s we need %s"%(path,t,n))
 #             time.sleep(5)
-            import pdb
+            #import pdb
             #pdb.set_trace()
             
             
@@ -645,11 +661,11 @@ class Network:
                 self.nodes.append(int(d))
             
             self.set_E.append((int(s),int(d)))
-            random_fidelity = random.uniform(0.94,0.97)
+            random_fidelity = random.uniform(0.92,0.96)
             self.each_edge_fidelity[(int(s),int(d))] = round(random_fidelity,3)
             self.each_edge_fidelity[(int(d),int(s))] = round(random_fidelity,3)
-            random_capacity = random.randint(200, 400)
-#             random_capacity = 400
+            random_capacity = random.randint(100, 400)
+#             random_capacity = 200
             
             self.each_edge_capacity[(int(s),int(d))] = random_capacity
             if random_capacity>self.max_edge_capacity:
@@ -757,9 +773,11 @@ class Network:
         self.each_path_basic_fidelity = {}
         for path,path_edges in self.set_of_paths.items():
             #basic_fidelity = basic_fidelities[random.randint(0,len(basic_fidelities)-1)]
-            basic_fidelity = 1
-            for edge in path_edges:
-                basic_fidelity = basic_fidelity * self.each_edge_fidelity[edge]
+            basic_fidelity = self.each_edge_fidelity[path_edges[0]]
+            #1/4 +3/4((4F1-1)/3)((4F2-1)/3)
+            for edge in path_edges[1:]:
+#                 basic_fidelity = basic_fidelity * self.each_edge_fidelity[edge]
+                basic_fidelity  = (1+(3*basic_fidelity*self.each_edge_fidelity[edge]))/4
             self.each_path_basic_fidelity[path]= round(basic_fidelity,3)
     def check_path_include_sub_path2(self,k,sub_path_id,path_id):
         if path_id in self.each_request_virtual_paths_include_subpath[k][sub_path_id]:
@@ -803,10 +821,17 @@ class Network:
     
 
 
-# In[ ]:
+# In[24]:
 
 
-
+# F1 = 1
+# F2 = 0.9
+# path_edges = [(1,2),(2,3),(3,4)]
+# print(path_edges[1:])
+# fidelity = (1/4)+(3/4) *((4 *F1-1)/3)*((4*F2-1)/3)
+# print(fidelity)
+# fidelity = (1+(3*F1*F2))/4
+# print(fidelity)
 
 
 # In[ ]:
@@ -1245,6 +1270,67 @@ def get_topologies_properties(topology_sizes):
 # topology_sizes = [400]
 # get_topologies_properties(topology_sizes)
 #2,4,6,9,12,13,15,16,17,18
+
+
+# In[28]:
+
+
+# not_connected_topologies = []
+# topology_sizes = [30]
+# import networkx as nx
+# for topology_size in topology_sizes:
+#     avg_degrees = []
+#     all_diameters = []
+#     avg_edges = []
+#     topology_indx = 0
+    
+#     degrees = []
+#     graph = nx.Graph()
+#     for i in range(0,topology_size):
+#         if i>0:
+#             #print("adding ",i, i-1)
+#             graph.add_edge(i, i-1)
+#         #print("adding ",i, i+1)
+#         graph.add_edge(i, i+1)
+
+#     set_of_E = set([])
+#     try:
+#         all_diameters.append(nx.diameter(graph))
+        
+#         file1 = open("data/linear_topology_"+str(topology_size)+".txt", "w")
+
+#         file1.writelines("Link_index	Source	Destination	Capacity(kbps)"+"\n")
+#         edge_counter = 0
+#         for e in graph.edges:
+#             #print(e)
+#             file1.writelines(str(edge_counter)+"\t"+str(e[0])+"\t"+str(e[1])+"\t"+"1"+"\n")
+#             edge_counter+=1
+#             set_of_E.add(e)
+#             file1.writelines(str(edge_counter)+"\t"+str(e[1])+"\t"+str(e[0])+"\t"+"1"+"\n")
+#             edge_counter+=1
+#             set_of_E.add(e)
+        
+#         avg_edges.append(len(list(set_of_E)))
+#         try:
+#             all_diameters.append(nx.diameter(graph))
+#         except:
+#             not_connected_topologies.append(str(topology_size)+","+str(topology_size))
+#         for node in graph.nodes:
+#             degrees.append(graph.degree[node])
+#         avg_degrees.append(sum(degrees)/len(degrees))
+#     except ValueError:
+#         print(ValueError)
+#         pass
+#     topology_indx+=1
+#     print("avg degree %s and avg edges %s "%(sum(avg_degrees)/len(avg_degrees),sum(avg_edges)/len(avg_edges)))
+#     print("not_connected_topologies",not_connected_topologies)
+#     print(all_diameters)
+
+
+# In[11]:
+
+
+
 
 
 # In[ ]:

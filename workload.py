@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[1]:
 
 
 from tmgen.models import uniform_tm,spike_tm,modulated_gravity_tm,random_gravity_tm,gravity_tm,exp_tm
@@ -45,7 +45,11 @@ class Work_load(object):
     def set_each_user_weight_over_time(self,each_t_user_pairs):
         for t,user_pairs in each_t_user_pairs.items():
             for k in user_pairs:
-                random_weight = random.uniform(0, 1)
+                if t==0:
+                    random_weight = random.uniform(0, 0.1)
+                else:
+                    random_weight = random.uniform(0, 1/t)
+                
                 try:
                     self.each_user_each_t_weight[k][t] = random_weight
                 except:
@@ -170,7 +174,7 @@ class Work_load(object):
             for i in range(num_of_pairs):
                 for j in range(num_of_pairs):
                     if i!=j:
-                        if (i,j) not in printed_pairs and (j,i) not in printed_pairs:
+                        if (i,j) not in printed_pairs and (j,i) not in printed_pairs and user_indx<num_of_pairs:
                             printed_pairs.append((i,j))
                             printed_pairs.append((j,i))
 #                             print("num_of_pairs %s time %s traffic from %s to %s is %s and user_indx %s"%(num_of_pairs, time,i,j,traffic[i][j],user_indx))
@@ -368,7 +372,7 @@ class Work_load(object):
 
 
 
-# In[ ]:
+# In[1]:
 
 
 
@@ -483,10 +487,44 @@ class Work_load(object):
 
 
 
-# In[ ]:
+# In[9]:
 
 
-
+# tm = spike_tm(6+1,2,250,10)
+# each_t_user_pairs={0:[(1,2),(1,3),(1,4),(1,5),(1,6),(1,7)],
+#                   1:[(1,2),(1,3),(1,4),(1,5),(1,6),(1,7)],
+#                   2:[(1,2),(1,3),(1,4),(1,5),(1,6),(1,7)],
+#                   3:[(1,2),(1,3),(1,4),(1,5),(1,6),(1,7)],
+#                   4:[(1,2),(1,3),(1,4),(1,5),(1,6),(1,7)],
+#                   5:[(1,2),(1,3),(1,4),(1,5),(1,6),(1,7)],
+#                   6:[(1,2),(1,3),(1,4),(1,5),(1,6),(1,7)],
+#                   7:[(1,2),(1,3),(1,4),(1,5),(1,6),(1,7)],
+#                   8:[(1,2),(1,3),(1,4),(1,5),(1,6),(1,7)],
+#                   9:[(1,2),(1,3),(1,4),(1,5),(1,6),(1,7)]}
+# each_t_each_request_demand = {}
+# for time in range(10):
+#     traffic = tm.at_time(time)
+# #     for item in traffic:
+# #         print('item',item)
+#     printed_pairs = []
+#     user_indx = 0
+#     for i in range(6):
+#         for j in range(6):
+#             if i!=j:
+                
+#                 if (i,j) not in printed_pairs and (j,i) not in printed_pairs and user_indx <6:
+#                     printed_pairs.append((i,j))
+#                     printed_pairs.append((j,i))
+# #                             print("num_of_pairs %s time %s traffic from %s to %s is %s and user_indx %s"%(num_of_pairs, time,i,j,traffic[i][j],user_indx))
+#                     request = each_t_user_pairs[time][user_indx]
+#                     user_indx+=1
+#                     demand = max(1,traffic[i][j])
+#                     print("for time %s node %s to node %s user_indx %s demand %s"%(time,i,j,user_indx,demand))
+#                     try:
+#                         each_t_each_request_demand[time][request] = demand
+#                     except:
+#                         each_t_each_request_demand[time] = {}
+#                         each_t_each_request_demand[time][request] = demand
 
 
 # In[ ]:

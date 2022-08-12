@@ -478,7 +478,7 @@ def maximizing_avg_fidelity(network,work_load,life_time,iteration,storage_capaci
     fail_flag = False
     solver_flag = False
     try:
-        result = spo.minimize(objective_function_test,wn_start,method="SLSQP",options = {"disp":True,"tol":0.01},constraints = constraints, bounds = bnds)
+        result = spo.minimize(objective_function_test,wn_start,method="Nelder-Mead",options = {"disp":True,"tol":0.01},constraints = constraints, bounds = bnds)
         #print result
         if result.success:
             print("success!")
@@ -574,7 +574,7 @@ def maximizing_fidelity(each_network_topology_file,results_file_path,inventory_u
         for spike_mean in spike_means:
             import pdb
             each_storage_each_path_number_value = {}
-            network = Network(file_path)
+            network = Network(file_path,True)
             
             for i in range(experiment_repeat):
                 network.reset_storage_pairs()
@@ -881,9 +881,9 @@ def maximizing_fidelity(each_network_topology_file,results_file_path,inventory_u
 # In[ ]:
 
 
-experiment_repeat =400 #indicates the number of times that we repeat the experiment
-spike_means = [40] # list of mean value for spike model traffic generation
-num_spikes = 2 # shows the number of nodes that have spike in their demand. Should be less than the number of user pairs
+experiment_repeat =30 #indicates the number of times that we repeat the experiment
+spike_means = [400] # list of mean value for spike model traffic generation
+num_spikes = 3 # shows the number of nodes that have spike in their demand. Should be less than the number of user pairs
 topology_set = sys.argv[1] # can be either real, random1, or random2
 
 setting_demands = sys.argv[2] # indicates the way we generate the demands. python_library for using tgem library. ransom for generating a random demand
@@ -895,20 +895,20 @@ else:
     storage_node_selection_schemes=["Degree"]
     cyclic_workload = "sequential"
     storage_capacities = [400,500,200,600,100]
-    storage_capacities = [500]
+    storage_capacities = [200]
     fidelity_threshold_ranges = [0.65,0.7,0.75,0.8,0.85,0.9,0.95,0.98,1.0]
     fidelity_threshold_ranges = [0.8]
     distance_between_users = 2
 
     given_life_time_set = [1000,2]# 1000 indicates infinite time slot life time and 2 indicates one time slot life
-    number_of_user_pairs =1
+    number_of_user_pairs =6
     number_of_time_slots = 5
     results_file_path = 'results/results_maximizing_fidelity.csv'
     inventory_utilization_results_file_path = 'results/inventory_maximizing_fidelity_utilization.csv'
     delived_purification_EPRs_file_path = 'results/delived_purification_EPRs_file_path_maximizing_fidelity.csv'
     each_network_topology_file = {}
     if topology_set =="real":
-        each_network_topology_file = {"ATT":'data/ATT_topology_file',"Abilene":'data/abilene',"SURFnet":'data/Surfnet',"IBM":'data/IBM'}
+        each_network_topology_file = {"SURFnet":'data/Surfnet',"ATT":'data/ATT_topology_file',"IBM":'data/IBM',"Abilene":'data/abilene'}
 
     elif topology_set =="random1":
         for i in [2,4,6]:

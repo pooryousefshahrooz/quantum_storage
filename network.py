@@ -1,21 +1,29 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[1]:
 
 
 import networkx as nx
 import matplotlib.pyplot as plt
 import random
 import time
+import math as mt
 
 
 # In[ ]:
 
 
 class Network:
-    def __init__(self,topology_file_path):
+    def __init__(self,topology_file_path,fidelity_experiment_flag,edge_fidelity_range,max_edge_capacity,fidelity_threshold_values):
+        if fidelity_experiment_flag:
+            self.fidelity_experiment = True
+        else:
+            self.fidelity_experiment = False
         self.set_E = []
+        self.fidelity_threshold_values = fidelity_threshold_values
+        self.max_edge_capacity_value = max_edge_capacity
+        self.edge_fidelity_range = edge_fidelity_range
         self.each_edge_capacity = {(1,2):20,(2,3):20,(3,4):20,(4,5):20,(2,7):20,(7,8):20,(8,9):20,
                                    (9,5):20,(5,6):20,(2,10):20,(10,11):20,(11,12):20,(12,5):20}
         
@@ -63,6 +71,7 @@ class Network:
         self.storage_pairs = []
         self.storage_nodes = []
         self.each_user_pair_all_real_paths = {}
+        self.each_user_pair_all_real_disjoint_paths = {}
         self.each_user_pair_real_paths = {}
         self.each_user_pair_virtual_paths = {}
         self.nodes = []
@@ -102,6 +111,97 @@ class Network:
 
         #self.load_topology()
         #self.calculate_paths()
+        
+    def load_topology(self):
+       
+        self.set_E=[]
+        self.each_edge_capacity={}
+        self.nodes = []
+        self.each_edge_fidelity = {}
+        self.max_edge_capacity = 0
+        self.g = nx.Graph()
+        print('[*] Loading topology...', self.topology_file)
+        f = open(self.topology_file, 'r')
+        header = f.readline()
+        #f.readline()
+#         self.link_capacities = np.empty((self.num_links))
+#         self.link_weights = np.empty((self.num_links))
+        for line in f:
+            line = line.strip()
+            link = line.split('\t')
+            #print(line,link)
+            i, s, d, c = link
+            if int(s) not in self.nodes:
+                self.nodes.append(int(s))
+            if int(d) not in self.nodes:
+                self.nodes.append(int(d))
+            
+            self.set_E.append((int(s),int(d)))
+#             if self.fidelity_experiment:
+#                 random_fidelity = random.uniform(0.95,0.98)
+#             else:
+            random_fidelity = random.uniform(self.edge_fidelity_range[0],self.edge_fidelity_range[1])
+            self.each_edge_fidelity[(int(s),int(d))] = round(random_fidelity,3)
+            self.each_edge_fidelity[(int(d),int(s))] = round(random_fidelity,3)
+            random_capacity = random.randint(300, self.max_edge_capacity_value)
+#             random_capacity = 200
+            
+            self.each_edge_capacity[(int(s),int(d))] = random_capacity
+            if random_capacity>self.max_edge_capacity:
+                self.max_edge_capacity  = random_capacity
+            self.g.add_edge(int(s),int(d),weight=1)
+#             self.link_capacities[int(i)] = float(c)
+#             self.link_weights[int(i)] = int(w)
+#             self.DG.add_weighted_edges_from([(int(s),int(d),int(w))])
+#             self.set_E.append()
+        
+        f.close()
+        #print('nodes: %d, links: %d\n'%(self.num_nodes, self.num_links))
+#         nx.draw_networkx(self.DG)
+#         plt.show()
+        
+    def load_testing_topology(self):
+       
+        self.set_E=[]
+        self.each_edge_capacity={}
+        self.nodes = []
+        self.max_edge_capacity = 0
+        self.g = nx.Graph()
+        print('[*] Loading topology...', self.topology_file)
+        f = open(self.topology_file, 'r')
+        header = f.readline()
+#         f.readline()
+#         self.link_capacities = np.empty((self.num_links))
+#         self.link_weights = np.empty((self.num_links))
+        for line in f:
+            line = line.strip()
+            link = line.split('\t')
+#             print(line,link)
+            i, s, d, c = link
+            if int(s) not in self.nodes:
+                self.nodes.append(int(s))
+            if int(d) not in self.nodes:
+                self.nodes.append(int(d))
+            
+            self.set_E.append((int(s),int(d)))
+            random_capacity = random.randint(200, 400)
+            
+            if (int(s),int(d)) ==(1,2) or (int(s),int(d))== (4,5) or (int(s),int(d)) == (2,1) or (int(s),int(d)) == (5,4):
+                random_capacity = 100
+            else:
+                random_capacity = 10
+#             print("for edge ",(int(s),int(d)),"capacity is ",random_capacity)
+            self.each_edge_capacity[(int(s),int(d))] = random_capacity
+            if random_capacity>self.max_edge_capacity:
+                self.max_edge_capacity  = random_capacity
+            self.g.add_edge(int(s),int(d),weight=1)
+#             self.link_capacities[int(i)] = float(c)
+#             self.link_weights[int(i)] = int(w)
+#             self.DG.add_weighted_edges_from([(int(s),int(d),int(w))])
+#             self.set_E.append()
+        
+        f.close()  
+        
     def get_user_pairs_over_dynamicly_chaning_population(self,number_of_user_pairs,distance_between_users,number_of_time_slots):
         self.each_t_user_pairs = {}
         candidate_user_pairs = []
@@ -211,7 +311,7 @@ class Network:
                     
     def set_user_pair_fidelity_threshold(self,fidelity_threshold_range):
         self.each_user_request_fidelity_threshold = {}
-        possible_thresholds = [0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,0.98,1.0]
+        possible_thresholds = self.fidelity_threshold_values
         possible_thresholds_based_on_given_range = []
         
         possible_thresholds_based_on_given_range.append(fidelity_threshold_range)
@@ -241,6 +341,33 @@ class Network:
              if start_ind is None or not(start_ind <= i < (start_ind + len(B)))]
             
         return C
+    def get_next_fidelity_and_succ_prob(self,F):
+        succ_prob = (F+((1-F)/3))**2 + (2*(1-F)/3)**2
+        output_fidelity = (F**2 + ((1-F)/3)**2)/succ_prob
+
+        return output_fidelity, succ_prob
+
+    def get_avg_epr_pairs(self,F_init,F_target):
+        F_curr = F_init
+        n_avg = 1.0
+        while(F_curr < F_target):
+            F_curr,succ_prob = self.get_next_fidelity_and_succ_prob(F_curr)
+            n_avg = n_avg*(2/succ_prob)
+        return  n_avg
+
+    def get_avg_output_fidelity(self,F_init,n_avg):
+        F_curr = F_init
+        n_curr = 1
+        while(1):
+            F_prev,succ_prob = self.get_next_fidelity_and_succ_prob(F_curr)
+            n_curr = n_curr*(2/succ_prob)
+
+            if(n_curr > n_avg):
+                break
+            else:
+                F_curr = F_prev
+
+        return F_curr
     def recursive_purification(self,n,f):
         #print("n is ",n)
         n = int(n)
@@ -282,8 +409,107 @@ class Network:
                 each_basic_fidelity_each_EPR_number_target_fidelity[f][n] = final_fidelity
             #print("for basic fidelity ",str(f),"we are done!")
         return each_basic_fidelity_each_EPR_number_target_fidelity,n_values
+    
+    def get_next_fidelity_and_succ_prob_BBPSSW(self,F):
+        succ_prob = (F+((1-F)/3))**2 + (2*(1-F)/3)**2
+        output_fidelity = (F**2 + ((1-F)/3)**2)/succ_prob
+
+        return output_fidelity, succ_prob
+
+    def get_next_fidelity_and_succ_prob_DEJMPS(self,F1,F2,F3,F4):
+        succ_prob = (F1+F2)**2 + (F3+F4)**2
+        output_fidelity1 = (F1**2 + F2**2)/succ_prob
+        output_fidelity2 = (2*F3*F4)/succ_prob
+        output_fidelity3 = (F3**2 + F4**2)/succ_prob
+        output_fidelity4 = (2*F1*F2)/succ_prob
+
+        return output_fidelity1, output_fidelity2, output_fidelity3, output_fidelity4, succ_prob
+
+    def get_avg_epr_pairs_BBPSSW(self,F_init,F_target):
+        F_curr = F_init
+        n_avg = 1.0
+        while(F_curr < F_target):
+            F_curr,succ_prob = get_next_fidelity_and_succ_prob_BBPSSW(F_curr)
+            n_avg = n_avg*(2/succ_prob)
+        return  n_avg
+
+    def get_avg_epr_pairs_DEJMPS(self,F_init,F_target):
+        F_curr = F_init
+        F2 = F3 = F4 = (1-F_curr)/3
+        n_avg = 1.0
+        while(F_curr < F_target):
+            F_curr,F2, F3, F4, succ_prob = get_next_fidelity_and_succ_prob_DEJMPS(F_curr, F2, F3, F4)
+            n_avg = n_avg*(2/succ_prob)
+        return  n_avg
+    
+    
+    def set_required_EPR_pairs_for_each_path_each_fidelity_threshold(self):
+        targets = []
+        for t in self.fidelity_threshold_values:
+            targets.append(t)
+        targets.append(0.6)
+        targets.sort()
+        for path,path_basic_fidelity in self.each_path_basic_fidelity.items():
+            #print("for path %s with lenght %s fidelity %s"%(path,self.each_path_legth[path],path_basic_fidelity))
+            try:
+                if path_basic_fidelity in self.global_each_basic_fidelity_target_fidelity_required_EPRs:
+                    
+                    for target in targets:
+                        
+                        #print("getting required rounds for initial F %s to target %s path length %s"%(path_basic_fidelity,target,self.each_path_legth[path]))
+                        n_avg = self.global_each_basic_fidelity_target_fidelity_required_EPRs[path_basic_fidelity][target]
+                        #print("we got ",n_avg)
+                        try:
+                            self.oracle_for_target_fidelity[path][target] = n_avg
+                            
+                        except:
+                            self.oracle_for_target_fidelity[path] = {}
+                            self.oracle_for_target_fidelity[path][target] = n_avg
+                            
+                else:
+                    
+                    for target in targets:
+                        
+                        #print("getting required rounds for initial F %s to target %s path lenght %s "%(path_basic_fidelity,target,self.each_path_legth[path]))
+                        n_avg = self.get_avg_epr_pairs(path_basic_fidelity ,target)
+                        n_avg = self.get_avg_epr_pairs_DEJMPS(path_basic_fidelity ,target)
+                        #print("we got ",n_avg)
+                        try:
+                            self.global_each_basic_fidelity_target_fidelity_required_EPRs[path_basic_fidelity][target] =n_avg 
+                        except:
+                            self.global_each_basic_fidelity_target_fidelity_required_EPRs[path_basic_fidelity]={}
+                            self.global_each_basic_fidelity_target_fidelity_required_EPRs[path_basic_fidelity][target] =n_avg 
+                            
+                        try:
+                            self.oracle_for_target_fidelity[path][target] = n_avg
+                            
+                        except:
+                            self.oracle_for_target_fidelity[path] = {}
+                            self.oracle_for_target_fidelity[path][target] = n_avg
+                            
+            except:
+                
+                for target in targets:
+                    n_avg = self.get_avg_epr_pairs(path_basic_fidelity ,target)
+                    try:
+                        self.global_each_basic_fidelity_target_fidelity_required_EPRs[path_basic_fidelity][target] =n_avg 
+                    except:
+                        self.global_each_basic_fidelity_target_fidelity_required_EPRs[path_basic_fidelity]={}
+                        self.global_each_basic_fidelity_target_fidelity_required_EPRs[path_basic_fidelity][target] =n_avg                     
+                    try:
+                        self.oracle_for_target_fidelity[path][target] = n_avg
+                        
+                    except:
+                        self.oracle_for_target_fidelity[path] = {}
+                        self.oracle_for_target_fidelity[path][target] = n_avg
+                        
+        
     def set_required_EPR_pairs_for_path_fidelity_threshold(self):
-        targets = [0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,0.98,1.0]
+        targets = []
+        for t in self.fidelity_threshold_values:
+            targets.append(t)
+        targets.append(0.6)
+        targets.sort()
         basic_fidelities = []
         for path,basic_fidelity in self.each_path_basic_fidelity.items():
             if basic_fidelity not in self.all_basic_fidelity_target_thresholds:
@@ -448,6 +674,7 @@ class Network:
             self.each_storage_capacity[storage_node] =1000
     def get_required_purification_EPR_pairs(self,p,threshold):
 #         print("we are getting the required EPR pairs for path %s to reach threshold %s"%(p,threshold))
+        
         return self.oracle_for_target_fidelity[p][threshold]
         if threshold>=0.9:
             return self.oracle_for_target_fidelity[p][0.9]
@@ -488,7 +715,7 @@ class Network:
             degrees = []
             candidate_nodes = []
             for node in self.g.nodes:
-                if node not in user_pair_nodes:
+                #if node not in user_pair_nodes:
                     try:
                         each_degree_nodes[self.g.degree[node]].append(node)
                     except:
@@ -500,6 +727,11 @@ class Network:
                 for n in nodes:
                     if n not in candidate_nodes:
                         candidate_nodes.append(n)
+            #print("candidate_nodes",candidate_nodes)
+            if len(candidate_nodes)==0:
+                any_available_nodes_for_storage = False
+            else:
+                any_available_nodes_for_storage = True
             while(len(self.storage_nodes)<number_of_storages and len(candidate_nodes)>0 ):    
                     storage1 = candidate_nodes[0]
                     candidate_nodes.pop(0)
@@ -539,7 +771,7 @@ class Network:
             user_pair_nodes = list(user_pair_nodes)
             permitted_nodes = []
             for node in self.nodes:
-                if node not in user_pair_nodes and node not in self.storage_nodes:
+                if node not in self.storage_nodes:
                     permitted_nodes.append(node)
             #print("we have permitted node as ",permitted_nodes,len(self.storage_nodes),number_of_storages,len(user_pair_nodes),user_pair_nodes)
             if len(permitted_nodes)+len(self.storage_nodes)<=number_of_storages:
@@ -577,9 +809,11 @@ class Network:
                                 self.storage_nodes.append(storage1)
                                 self.storage_nodes.append(storage2)
                         #print("this is our first storage pair",self.storage_pairs)
+        #return any_available_nodes_for_storage
     def reset_pair_paths(self):
         self.set_of_paths = {}
         self.each_user_pair_all_real_paths = {}
+        self.each_user_pair_all_real_disjoint_paths = {}
         self.each_request_real_paths = {}
         self.each_request_virtual_paths = {}
         self.each_request_virtual_paths_include_subpath = {}
@@ -596,10 +830,30 @@ class Network:
             #pdb.set_trace()
             paths = []
             for p in shortest_paths:
+                print("for src %s dst %s shortest path is %s "%(user_pair[0],user_pair[1],p))
                 paths.append(p)
             self.each_user_pair_all_real_paths[user_pair] = paths
-#             for path in paths:
-#                 print("for pair %s we have these shortest paths %s"%(user_pair,len(path)))
+        for user_pair in pairs:
+            if user_pair[0]==user_pair[1]:
+                paths = [[user_pair[0]]]
+            else:
+                shortest_disjoint_paths = nx.edge_disjoint_paths(self.g,s=user_pair[0],t=user_pair[1])
+                #print(shortest_paths)
+                #print(shortest_paths.sort(reverse=True))
+                import pdb
+                #pdb.set_trace()
+                paths = []
+                for p in shortest_disjoint_paths:
+                    #print("for src %s dst %s shortest disjoint path is %s "%(user_pair[0],user_pair[1],p))
+                    #if p not in self.each_user_pair_all_real_paths[user_pair]:
+                        #print("We have a path in disjoint that is not in shortest path!!!!")
+                        #print("the shortespt paths are ",self.each_user_pair_all_real_paths[user_pair])
+                        #time.sleep(4)
+                    paths.append(p)
+            self.each_user_pair_all_real_disjoint_paths[user_pair] = paths
+        
+        #time.sleep(1)
+            
     def get_real_longest_path(self,user_or_storage_pair,number_of_paths):
         all_paths=[]
         for path in nx.all_simple_paths(self.g,source=user_or_storage_pair[0],target=user_or_storage_pair[1]):
@@ -618,117 +872,70 @@ class Network:
         else:
             return all_paths
                         
-    def get_real_path(self,user_or_storage_pair,number_of_paths):
-        path_selecion_flag = False
-        path_counter = 1
-        paths = []
-        #print("self.each_user_pair_all_real_paths[user_or_storage_pair]",self.each_user_pair_all_real_paths[user_or_storage_pair])
-        for path in self.each_user_pair_all_real_paths[user_or_storage_pair]:
-            #print("we can add this path",path)
-            if path_counter<=number_of_paths:
-                node_indx = 0
-                path_edges = []
-                for node_indx in range(len(path)-1):
-                    path_edges.append((path[node_indx],path[node_indx+1]))
-                    node_indx+=1
-                paths.append(path_edges)
+    def get_real_path(self,user_or_storage_pair,number_of_paths,path_selection_scheme):
+        if path_selection_scheme=="shortest":
+            path_selecion_flag = False
+            path_counter = 1
+            paths = []
+            #print("self.each_user_pair_all_real_paths[user_or_storage_pair]",self.each_user_pair_all_real_paths[user_or_storage_pair])
+            for path in self.each_user_pair_all_real_paths[user_or_storage_pair]:
+                #print("we can add this path",path)
+                if path_counter<=number_of_paths:
+                    node_indx = 0
+                    path_edges = []
+#                     print("for pair this is the normal path ",user_or_storage_pair,path)
+#                     if len(path)==1:
+#                         print("this si the unnormal case")
+#                         for node_indx in range(len(path)-1):
+#                             print("edge",(path[node_indx],path[node_indx+1]))
+#                             path_edges.append((path[node_indx],path[node_indx+1]))
+#                             node_indx+=1
+#                         import pdb
+#                         import time
+#                         time.sleep(3)
+#                         #pdb.set_trace()
+                    for node_indx in range(len(path)-1):
+                        path_edges.append((path[node_indx],path[node_indx+1]))
+                        node_indx+=1
+                    paths.append(path_edges)
 
-            path_counter+=1
+                path_counter+=1
+        elif path_selection_scheme=="shortest_disjoint":
+            path_selecion_flag = False
+            path_counter = 1
+            paths = []
+            #print("self.each_user_pair_all_real_paths[user_or_storage_pair]",self.each_user_pair_all_real_paths[user_or_storage_pair])
+            for path in self.each_user_pair_all_real_disjoint_paths[user_or_storage_pair]:
+                #print("we can add this path",path)
+                if path_counter<=number_of_paths:
+                    node_indx = 0
+                    path_edges = []
+#                     print("for pair this is the disjoint path ",user_or_storage_pair,path)
+#                     if len(path)==1:
+#                         print("this si the unnormal case",path)
+#                         for node_indx in range(len(path)-1):
+#                             print("edge",(path[node_indx],path[node_indx+1]))
+#                             path_edges.append((path[node_indx],path[node_indx+1]))
+#                             node_indx+=1
+#                         import pdb
+#                         #pdb.set_trace()
+                    for node_indx in range(len(path)-1):
+                        path_edges.append((path[node_indx],path[node_indx+1]))
+                        node_indx+=1
+                    paths.append(path_edges)
+
+                path_counter+=1
+            
         return paths
                     
-    def load_topology(self):
-       
-        self.set_E=[]
-        self.each_edge_capacity={}
-        self.nodes = []
-        self.each_edge_fidelity = {}
-        self.max_edge_capacity = 0
-        self.g = nx.Graph()
-        print('[*] Loading topology...', self.topology_file)
-        f = open(self.topology_file, 'r')
-        header = f.readline()
-        #f.readline()
-#         self.link_capacities = np.empty((self.num_links))
-#         self.link_weights = np.empty((self.num_links))
-        for line in f:
-            line = line.strip()
-            link = line.split('\t')
-            #print(line,link)
-            i, s, d, c = link
-            if int(s) not in self.nodes:
-                self.nodes.append(int(s))
-            if int(d) not in self.nodes:
-                self.nodes.append(int(d))
-            
-            self.set_E.append((int(s),int(d)))
-            random_fidelity = random.uniform(0.92,0.96)
-            self.each_edge_fidelity[(int(s),int(d))] = round(random_fidelity,3)
-            self.each_edge_fidelity[(int(d),int(s))] = round(random_fidelity,3)
-            random_capacity = random.randint(100, 400)
-#             random_capacity = 200
-            
-            self.each_edge_capacity[(int(s),int(d))] = random_capacity
-            if random_capacity>self.max_edge_capacity:
-                self.max_edge_capacity  = random_capacity
-            self.g.add_edge(int(s),int(d),weight=1)
-#             self.link_capacities[int(i)] = float(c)
-#             self.link_weights[int(i)] = int(w)
-#             self.DG.add_weighted_edges_from([(int(s),int(d),int(w))])
-#             self.set_E.append()
-        
-        f.close()
-        #print('nodes: %d, links: %d\n'%(self.num_nodes, self.num_links))
-#         nx.draw_networkx(self.DG)
-#         plt.show()
-        
-    def load_testing_topology(self):
-       
-        self.set_E=[]
-        self.each_edge_capacity={}
-        self.nodes = []
-        self.max_edge_capacity = 0
-        self.g = nx.Graph()
-        print('[*] Loading topology...', self.topology_file)
-        f = open(self.topology_file, 'r')
-        header = f.readline()
-#         f.readline()
-#         self.link_capacities = np.empty((self.num_links))
-#         self.link_weights = np.empty((self.num_links))
-        for line in f:
-            line = line.strip()
-            link = line.split('\t')
-#             print(line,link)
-            i, s, d, c = link
-            if int(s) not in self.nodes:
-                self.nodes.append(int(s))
-            if int(d) not in self.nodes:
-                self.nodes.append(int(d))
-            
-            self.set_E.append((int(s),int(d)))
-            random_capacity = random.randint(200, 400)
-            
-            if (int(s),int(d)) ==(1,2) or (int(s),int(d))== (4,5) or (int(s),int(d)) == (2,1) or (int(s),int(d)) == (5,4):
-                random_capacity = 100
-            else:
-                random_capacity = 10
-#             print("for edge ",(int(s),int(d)),"capacity is ",random_capacity)
-            self.each_edge_capacity[(int(s),int(d))] = random_capacity
-            if random_capacity>self.max_edge_capacity:
-                self.max_edge_capacity  = random_capacity
-            self.g.add_edge(int(s),int(d),weight=1)
-#             self.link_capacities[int(i)] = float(c)
-#             self.link_weights[int(i)] = int(w)
-#             self.DG.add_weighted_edges_from([(int(s),int(d),int(w))])
-#             self.set_E.append()
-        
-        f.close()    
+      
                     
-    def join_users_to_storages(self,src,dst,str1,str2,real_sub_path,number_of_paths):
+    def connect_users_to_storages(self,src,dst,str1,str2,real_sub_path,number_of_paths,path_selection_scheme):
         #print("we are going to connect node %s to %s and %s to %s"%(src,str1,str2,dst))
         self.get_each_user_pair_real_paths([(src,str1)])
         self.get_each_user_pair_real_paths([(str2,dst)])
-        sub_paths1 = self.get_real_path((src,str1),number_of_paths)
-        sub_paths2 = self.get_real_path((str2,dst),number_of_paths)
+        sub_paths1 = self.get_real_path((src,str1),number_of_paths,path_selection_scheme)
+        sub_paths2 = self.get_real_path((str2,dst),number_of_paths,path_selection_scheme)
         #print("we got these paths for them",sub_paths1,sub_paths2)
         set_of_paths = []
         for path_part1 in sub_paths1:
@@ -746,14 +953,14 @@ class Network:
                 set_of_paths.append(new_path)
                 new_path = back_up_path
         return set_of_paths
-    def get_paths_to_connect_users_to_storage(self,user_pair,real_sub_path,num_paths):
+    def get_paths_to_connect_users_to_storage(self,user_pair,real_sub_path,num_paths,path_selection_scheme):
         #print("we are going to find shortest path to connect user pair %s to sub path %s"%(user_pair,real_sub_path))
         src= user_pair[0]
         dst= user_pair[1]
         str1 = real_sub_path[0][0]
         str2= real_sub_path[len(real_sub_path)-1][1]
-        first_set_of_paths = self.join_users_to_storages(src,str1,str2,dst,real_sub_path,num_paths)
-        second_set_of_paths = self.join_users_to_storages(dst,str1,str2,src,real_sub_path,num_paths)
+        first_set_of_paths = self.connect_users_to_storages(src,str1,str2,dst,real_sub_path,num_paths,path_selection_scheme)
+        second_set_of_paths = self.connect_users_to_storages(dst,str1,str2,src,real_sub_path,num_paths,path_selection_scheme)
 #         print("we got first set of paths ",first_set_of_paths)
 #         print("we got the second set of paths",second_set_of_paths)
         first_path_length = []
@@ -773,12 +980,40 @@ class Network:
         self.each_path_basic_fidelity = {}
         for path,path_edges in self.set_of_paths.items():
             #basic_fidelity = basic_fidelities[random.randint(0,len(basic_fidelities)-1)]
-            basic_fidelity = self.each_edge_fidelity[path_edges[0]]
+            basic_fidelity = 1/4+(3/4)*(4*self.each_edge_fidelity[path_edges[0]]-1)/3
             #1/4 +3/4((4F1-1)/3)((4F2-1)/3)
+            #print("for path %s with lenght %s first edge fidelity %s %s "%(path,self.each_path_legth[path],self.each_edge_fidelity[path_edges[0]],basic_fidelity ))
             for edge in path_edges[1:]:
 #                 basic_fidelity = basic_fidelity * self.each_edge_fidelity[edge]
-                basic_fidelity  = (1+(3*basic_fidelity*self.each_edge_fidelity[edge]))/4
+                #print("edge with fidelity %s"%(self.each_edge_fidelity[edge]))
+                basic_fidelity  = (basic_fidelity)*((4*self.each_edge_fidelity[edge]-1)/3)
+            basic_fidelity = basic_fidelity
             self.each_path_basic_fidelity[path]= round(basic_fidelity,3)
+            #if round(basic_fidelity,3)<0.6:
+                #print("path end to end fidelity is ",round(basic_fidelity,3))
+                #import time
+                #time.sleep(10)
+    def check_each_request_real_virtual_paths(self,T,each_t_requests):
+        for t in T[1:]:
+            for k in each_t_requests[t]:
+                having_at_least_one_path_flag = False
+                this_k_set_of_real_paths = []
+                this_k_set_of_virtual_paths = []
+                try:
+                    if self.each_request_real_paths[k]:
+                        for p in self.each_request_real_paths[k]:
+                            having_at_least_one_path_flag = True
+                except:
+                    pass
+                try:
+                    for p in self.each_request_virtual_paths[k]:
+                        having_at_least_one_path_flag = True
+                except:
+                    pass
+                if not having_at_least_one_path_flag:
+                    return False
+        return having_at_least_one_path_flag
+                    
     def check_path_include_sub_path2(self,k,sub_path_id,path_id):
         if path_id in self.each_request_virtual_paths_include_subpath[k][sub_path_id]:
             return True
@@ -791,6 +1026,14 @@ class Network:
             return False
     def get_edges(self):
         return self.set_E
+    def get_this_path_fidelity(self,path_edges):
+        
+        
+        basic_fidelity = 1/4+(3/4)*(4*self.each_edge_fidelity[path_edges[0]]-1)/3
+        #1/4 +3/4((4F1-1)/3)((4F2-1)/3)
+        for edge in path_edges[1:]:
+            basic_fidelity  = (basic_fidelity)*((4*self.each_edge_fidelity[edge]-1)/3)
+        return basic_fidelity
     def get_storage_capacity(self,storage):
         return self.each_storage_capacity[storage]
     def check_path_include_edge(self,edge,path):
@@ -821,9 +1064,18 @@ class Network:
     
 
 
-# In[24]:
+# In[8]:
 
 
+
+# G = nx.icosahedral_graph()
+# # len(list(nx.edge_disjoint_paths(G, 0, 0)))
+# shortest_paths = nx.all_shortest_paths(G,source=0,target=0, weight='weight')
+# shortest_disjoint_paths = nx.edge_disjoint_paths(G,s=0,t=6)
+# for p in shortest_paths:
+#     print(p)
+# for p in shortest_disjoint_paths:
+#     print("disjoint",p)
 # F1 = 1
 # F2 = 0.9
 # path_edges = [(1,2),(2,3),(3,4)]
@@ -832,6 +1084,12 @@ class Network:
 # print(fidelity)
 # fidelity = (1+(3*F1*F2))/4
 # print(fidelity)
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:

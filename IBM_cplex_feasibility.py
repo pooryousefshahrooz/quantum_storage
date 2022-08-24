@@ -193,13 +193,13 @@ def CPLEX_resource_cinsumption_minimization(network,work_load,life_time,iteratio
     each_time_each_path_purification_EPRs = {}
     if objective_value>0:
         
-        for t in work_load.T[1:]:
-            for k in work_load.each_t_real_requests[t]:
-                for p in network.each_request_virtual_paths[k]:
-                    if network.get_path_length(p)==1:
-                        print("this is the path length for path %s "%(network.get_path_length(p)))
-                        print("k is ",k)
-                        print(network.storage_pairs)
+#         for t in work_load.T[1:]:
+#             for k in work_load.each_t_real_requests[t]:
+#                 for p in network.each_request_virtual_paths[k]:
+#                     if network.get_path_length(p)==1:
+                        #print("this is the path length for path %s "%(network.get_path_length(p)))
+                        #print("k is ",k)
+                        #print(network.storage_pairs)
         
         time.sleep(5)
         for t in work_load.T[1:]:
@@ -585,7 +585,7 @@ if setting_demands not in ["random","python_library"]:
     print("please run the script by python IBM_cplex_feasibiloty.py real/random1/random2 random/python_library")
 else:
     storage_node_selection_schemes=["Degree","Random"]
-    storage_node_selection_schemes=["Random"]
+    storage_node_selection_schemes=["Random","Degree"]
     cyclic_workload = "sequential"
     storage_capacities = [800,1200,1500,2000]
     storage_capacities = [50,100,200,300,400,600,800,1000,1500,2000,4000,6000]
@@ -597,7 +597,7 @@ else:
     given_life_time_set = [1000,2]# 1000 indicates infinite time slot life time and 2 indicates one time slot life
     
     number_of_time_slots = 10
-    results_file_path = 'results/results_feasibility_final_20_sec_interval_new_formulation_test.csv'
+    results_file_path = 'results/results_feasibility_final_20_sec_interval_new_formulation_final.csv'
     inventory_utilization_results_file_path = 'results/inventory_feasibility_utilization_final_20_sec_interval_new_formulation.csv'
     delived_purification_EPRs_file_path = 'results/delived_purification_EPRs_file_path_final_20_sec_interval_new_formulation.csv'
     each_network_topology_file = {}
@@ -626,23 +626,23 @@ else:
             each_network_topology_file["random_erdos_renyi_"+str(i)]= "data/size_"+str(400)+"_random_erdos_reni_0_0_1_"+str(i)+".txt"
     elif topology_set =="all":
         each_network_topology_file = {"SURFnet":'data/Surfnet',"IBM":'data/IBM',"ATT":'data/ATT_topology_file',"Abilene":'data/abilene'}
-        each_topology_mean_value_spike={"ATT":[10,20],"IBM":[10,20],"SURFnet":[10,20],"Abilene":[10,20]}
-        for i in [2,4,6]:
-            each_network_topology_file["random_erdos_renyi2_"+str(i)]= "data/random_erdos_renyi2_"+str(i)+".txt"
-            each_topology_mean_value_spike["random_erdos_renyi2_"+str(i)] = [200,300]
-            each_network_topology_file["random_barabasi_albert2_"+str(i)]= "data/random_barabasi_albert2_"+str(i)+".txt"
-            each_topology_mean_value_spike["random_barabasi_albert2_"+str(i)] = [200,300]
-        for i in range(1,4):
-            each_network_topology_file["random_erdos_renyi_"+str(i)]= "data/random_erdos_renyi_"+str(i)+".txt"
-            each_network_topology_file["random_barabasi_albert_"+str(i)]= "data/random_barabasi_albert_"+str(i)+".txt"
-            each_topology_mean_value_spike["random_erdos_renyi_"+str(i)] = [300,200]
-            each_topology_mean_value_spike["random_barabasi_albert_"+str(i)] = [300,200]
+        each_topology_mean_value_spike={"ATT":[350],"IBM":[350],"SURFnet":[350],"Abilene":[350]}
+        for i in [2]:
+            each_network_topology_file["G_50_0.05_"+str(i)]= "data/random_erdos_renyi2_"+str(i)+".txt"
+            each_topology_mean_value_spike["G_50_0.05_"+str(i)] = [400]
+            each_network_topology_file["PA_50_2_"+str(i)]= "data/random_barabasi_albert2_"+str(i)+".txt"
+            each_topology_mean_value_spike["PA_50_2_"+str(i)] = [400]
+        for i in [2]:
+            each_network_topology_file["G_50_0.1_"+str(i)]= "data/random_erdos_renyi_"+str(i)+".txt"
+            each_network_topology_file["PA_50_3_"+str(i)]= "data/random_barabasi_albert_"+str(i)+".txt"
+            each_topology_mean_value_spike["G_50_0.1_"+str(i)] = [400]
+            each_topology_mean_value_spike["PA_50_3_"+str(i)] = [400]
     elif topology_set =="random_reny":
         for i in [2]:
-            each_network_topology_file["random_erdos_renyi2_"+str(i)]= "data/random_erdos_renyi2_"+str(i)+".txt"
-            each_network_topology_file["random_erdos_renyi_"+str(i)]= "data/random_erdos_renyi_"+str(i)+".txt"
-            each_topology_mean_value_spike["random_erdos_renyi2_"+str(i)] = [350,400]
-            each_topology_mean_value_spike["random_erdos_renyi_"+str(i)] = [350,400]
+            each_network_topology_file["G_50_0.05_"+str(i)]= "data/random_erdos_renyi2_"+str(i)+".txt"
+            each_network_topology_file["PA_50_3_"+str(i)]= "data/random_erdos_renyi_"+str(i)+".txt"
+            each_topology_mean_value_spike["G_50_0.05_"+str(i)] = [350,400]
+            each_topology_mean_value_spike["PA_50_3_"+str(i)] = [350,400]
 
     elif topology_set =="random":
         for i in [2]:

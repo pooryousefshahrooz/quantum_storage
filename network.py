@@ -830,7 +830,7 @@ class Network:
             #pdb.set_trace()
             paths = []
             for p in shortest_paths:
-                print("for src %s dst %s shortest path is %s "%(user_pair[0],user_pair[1],p))
+                #print("for src %s dst %s shortest path is %s "%(user_pair[0],user_pair[1],p))
                 paths.append(p)
             self.each_user_pair_all_real_paths[user_pair] = paths
         for user_pair in pairs:

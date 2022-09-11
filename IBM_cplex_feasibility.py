@@ -910,7 +910,7 @@ def feasibility2(each_network_topology_file,results_file_path,inventory_utilizat
 # setup with 400 max edge capacity and storage capacity 200 and 60 s time interval
 # works with mean in file results.. all_three_networks.csv
 
-experiment_repeat =60 #indicates the number of times that we repeat the experiment
+experiment_repeat =100 #indicates the number of times that we repeat the experiment
 
 num_spikes = 3 # shows the number of nodes that have spike in their demand. Should be less than the number of user pairs
 topology_set = sys.argv[1] # can be either real, random1, or random2
@@ -927,13 +927,13 @@ if setting_demands not in ["random","python_library"]:
     print("please run the script by python IBM_cplex_feasibiloty.py real/random1/random2 random/python_library")
 else:
     storage_node_selection_schemes=["Degree","Random"]
-    storage_node_selection_schemes=["Random"]
+    storage_node_selection_schemes=["Degree"]
     cyclic_workload = "sequential"
     storage_capacities = [800,1200,1500,2000]
     storage_capacities = [50,100,200,300,400,600,800,1000,1500,2000,4000,6000]
     storage_capacities = [12000]
     fidelity_threshold_ranges = [0.75,0.8,0.85,0.9,0.92,0.94,0.96,0.98]
-    fidelity_threshold_ranges = [0.8,0.9,0.94,0.96]
+    fidelity_threshold_ranges = [0.9,0.94]
     distance_between_users = 2
 
     given_life_time_set = [1000]# 1000 indicates infinite time slot life time and 2 indicates one time slot life
@@ -969,7 +969,7 @@ else:
     elif topology_set =="all":
         each_network_topology_file = {"SURFnet":'data/Surfnet',"IBM":'data/IBM',"ATT":'data/ATT_topology_file',"Abilene":'data/abilene'}
         each_network_topology_file = {"SURFnet":'data/Surfnet'}
-        each_topology_mean_value_spike={"ATT":[300],"IBM":[300],"SURFnet":[300],"Abilene":[300]}
+        each_topology_mean_value_spike={"ATT":[250],"IBM":[250],"SURFnet":[250,200],"Abilene":[200,250]}
         for i in [2]:
             each_network_topology_file["G_50_0.05_"+str(i)]= "data/random_erdos_renyi2_"+str(i)+".txt"
             each_topology_mean_value_spike["G_50_0.05_"+str(i)] = [350]

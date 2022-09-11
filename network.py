@@ -918,12 +918,13 @@ class Network:
             for user in users:
                 #print("self.each_user_pair_real_paths",self.each_user_pair_real_paths)
                 if p in self.each_request_real_paths[user]+self.each_request_virtual_paths[user]:
-                    for p2 in self.each_request_real_paths[user]+self.each_request_virtual_paths[user]:
-                        path = self.set_of_paths[p2]
-                        if len(path)>longest_p_lenght:
-                            longest_p_lenght = len(path)
-                        if self.each_request_threshold[user][t] > max_F_threshold:
-                            max_F_threshold = self.each_request_threshold[user][t]
+#                     for p2 in self.each_request_real_paths[user]+self.each_request_virtual_paths[user]:
+#                         path = self.set_of_paths[p2]
+#                         if len(path)>longest_p_lenght:
+                    path = self.set_of_paths[p]
+                    longest_p_lenght = len(path)
+                    if self.each_request_threshold[user][t] > max_F_threshold:
+                        max_F_threshold = self.each_request_threshold[user][t]
         if longest_p_lenght==0:
             required_edge_level_fidleity = self.each_edge_fidelity[edge]
             new_target = required_edge_level_fidleity
